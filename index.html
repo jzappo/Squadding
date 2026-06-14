@@ -1,0 +1,3344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPSC Match Squadding Tool</title>
+<style>
+/* ===== RESET & BASE ===== */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef0f5;color:#1f2937;font-size:15px;min-height:100vh}
+h1,h2,h3{font-weight:700}
+
+/* ===== SCREENS ===== */
+.screen{display:none}
+.screen.active{display:block}
+
+/* ===== HEADER ===== */
+#app-header{background:#1a1a2e;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+#app-header h1{font-size:17px;font-weight:800;letter-spacing:.3px;white-space:nowrap}
+#match-title-input{background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.3);color:#fff;font-size:17px;font-weight:700;width:280px;outline:none;padding:2px 4px}
+#match-title-input::placeholder{color:rgba(255,255,255,.35)}
+#app-header .spacer{flex:1}
+#group-counter{display:flex;gap:10px;font-size:13px;align-items:center}
+.counter-pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 14px;white-space:nowrap;font-size:13px}
+.counter-pill span{font-weight:700;color:#fff}
+#header-btns{display:flex;gap:8px}
+.btn-icon{padding:7px;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;border:none;cursor:pointer;font-size:17px;line-height:1;transition:background .15s}
+.btn-icon:hover{background:rgba(255,255,255,.2)}
+
+/* ===== BUTTONS ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;border:none;cursor:pointer;font-size:14px;font-weight:700;transition:all .15s;white-space:nowrap}
+.btn-sm{padding:6px 12px;font-size:13px}
+.btn-primary{background:#3b82f6;color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-secondary{background:#fff;color:#1f2937;border:1.5px solid #e5e7eb}.btn-secondary:hover{background:#f9fafb}
+.btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+.btn-danger{background:#ef4444;color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-amber{background:#f59e0b;color:#fff}.btn-amber:hover{background:#d97706}
+
+/* ===== SETUP SCREEN ===== */
+#setup-screen{padding:22px 26px;max-width:1400px;margin:0 auto}
+
+/* Step bar */
+.setup-steps{display:flex;background:#1a1a2e;border-radius:12px;padding:16px 22px;margin-bottom:22px;gap:0}
+.setup-step{flex:1;display:flex;align-items:center;gap:12px;padding:0 20px}
+.setup-step:first-child{padding-left:0}
+.setup-step:not(:last-child){border-right:1px solid rgba(255,255,255,.12)}
+.setup-step-num{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;color:#fff}
+.setup-step-num.active{background:#3b82f6}
+.setup-step-label{font-size:12px;color:rgba(255,255,255,.6);line-height:1.4}
+.setup-step-label strong{display:block;font-size:14px;color:#fff;font-weight:700}
+
+/* Match type + uploads row */
+.setup-top-row{display:flex;gap:20px;margin-bottom:26px;align-items:stretch;flex-wrap:wrap}
+.setup-match-type-col{display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+.setup-match-type-col .section-title{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px}
+.setup-uploads-col{display:flex;gap:16px;flex:1;min-width:0}
+
+/* Match type buttons */
+.match-type-btn{padding:12px 20px;border-radius:10px;border:2px solid #e5e7eb;background:#fff;cursor:pointer;text-align:left;transition:all .15s;min-width:150px}
+.match-type-btn.active{border-color:#3b82f6;background:#eff6ff;color:#1e40af}
+.match-type-btn:hover:not(.active){border-color:#93c5fd;background:#f8faff}
+.match-type-btn .mt-level{font-size:17px;font-weight:800}
+.match-type-btn .mt-sub{font-size:12px;opacity:.65;margin-top:2px}
+
+/* Upload cards */
+.upload-card{background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:18px 20px;text-align:left;transition:border-color .15s;cursor:pointer;display:flex;align-items:flex-start;gap:16px;flex:1}
+.upload-card-icon{padding-top:2px}
+.upload-card.drag-over{border-color:#3b82f6;background:#eff6ff}
+.upload-card.drag-over *{pointer-events:none}
+.upload-card.loaded{border-color:#10b981;background:#f0fdf4}
+.upload-card-icon{font-size:28px;flex-shrink:0}
+.upload-card-body{flex:1;min-width:0}
+.upload-card-title{font-size:15px;font-weight:700;margin-bottom:3px}
+.upload-card-sub{font-size:12px;color:#6b7280;margin-bottom:8px}
+.upload-card-status{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.upload-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.upload-dot.pending{background:#9ca3af}
+.upload-dot.ok{background:#10b981}
+.upload-dot.warn{background:#f59e0b}
+.upload-card-action{flex-shrink:0}
+
+/* Bay setup section */
+.setup-bay-section{display:flex;gap:20px;align-items:flex-start}
+.setup-bay-main{flex:1;min-width:0}
+.setup-bay-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.setup-bay-header h2{font-size:17px;font-weight:700;margin:0}
+.setup-bay-header label{font-weight:700;font-size:14px;white-space:nowrap}
+.setup-bay-header input[type=number]{width:68px;padding:6px 10px;border:1.5px solid #e5e7eb;border-radius:7px;font-size:15px}
+#bays-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;margin-bottom:20px}
+
+/* Bay setup card */
+.bay-setup-card{background:#fff;border-radius:10px;border:1px solid #e5e7eb;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.bay-setup-card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.bay-setup-card-header h3{font-size:15px;font-weight:700;margin:0;flex:1}
+.bay6-badge{background:#7c3aed;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700}
+.bay-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.bay-field-grid .span-full{grid-column:1/-1}
+.form-row{display:flex;flex-direction:column;gap:4px}
+.form-row label{font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.form-row input,.form-row select{padding:7px 10px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:14px;outline:none;width:100%;transition:border-color .15s}
+.form-row input:focus,.form-row select:focus{border-color:#3b82f6}
+
+/* PDF side panel */
+#pdf-viewer-wrap{width:340px;flex-shrink:0;position:sticky;top:72px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.pdf-viewer-header{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid #e5e7eb;gap:8px;background:#f9fafb}
+.pdf-viewer-header .pdf-title{font-size:13px;font-weight:700;flex:1;color:#1f2937}
+#pdf-canvas-wrap{background:#525659;overflow:auto;max-height:calc(100vh - 200px);text-align:center;padding:8px}
+#setup-continue-row{display:flex;justify-content:flex-end;padding-top:18px;border-top:1px solid #e5e7eb;gap:12px}
+
+/* ===== MAIN SCREEN ===== */
+#main-screen{flex-direction:column;height:calc(100vh - 54px)}
+#main-screen.active{display:flex}
+#main-layout{display:flex;flex-direction:column;flex:1;overflow:hidden;gap:0}
+
+/* Center panel — bay grid (now top area) */
+#center-panel{flex:1;overflow:auto;padding:14px 14px 8px;background:inherit}
+#bay-grid{display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:12px;min-width:1380px}
+
+/* Stage image inside bay col */
+.bay-stage-img-wrap{position:relative;overflow:hidden}
+.bay-stage-img{width:100%;display:block;object-fit:contain;background:#f9fafb;border-bottom:1px solid #e5e7eb;max-height:160px;cursor:zoom-in;transition:opacity .15s}
+.bay-stage-img:hover{opacity:.85}
+/* Hover preview — shown via JS on mouseenter/mouseleave */
+.stage-img-preview{position:fixed;z-index:4000;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.45);pointer-events:none;max-width:420px;max-height:340px;object-fit:contain;display:none;border:2px solid #e5e7eb;background:#fff}
+.bay-no-img{height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9ca3af;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+
+/* Bottom people strip */
+#bottom-panel{height:180px;min-height:120px;max-height:60vh;background:#fff;border-top:2px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
+#bottom-resize-handle{position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;z-index:10;background:transparent}
+#bottom-resize-handle:hover,#bottom-resize-handle.dragging{background:rgba(59,130,246,.25)}
+#bottom-panel-header{padding:8px 14px 6px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px;flex-shrink:0}
+#bottom-panel-header .filter-row{margin:0}
+#search-box{padding:6px 11px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;outline:none;width:180px}
+#search-box:focus{border-color:#3b82f6}
+.filter-row{display:flex;flex-wrap:nowrap;gap:4px}
+.filter-btn{padding:3px 9px;border-radius:12px;border:1.5px solid #e5e7eb;background:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.filter-btn.active{background:#1a1a2e;color:#fff;border-color:#1a1a2e}
+.filter-btn[data-day="1"].active{background:#2563eb;color:#fff;border-color:#2563eb}
+.filter-btn[data-day="2"].active{background:#059669;color:#fff;border-color:#059669}
+/* Day selector bar — full width, centered, at top of main screen */
+#day-tabs-bar{display:none;flex-direction:row;align-items:center;justify-content:center;gap:10px;padding:12px 24px;border-bottom:3px solid #e5e7eb;background:#f1f5f9;flex-shrink:0;position:sticky;top:54px;z-index:90}
+.day-tab{padding:10px 36px;font-size:15px;font-weight:800;cursor:pointer;border:2px solid transparent;border-radius:10px;background:rgba(255,255,255,.7);color:#6b7280;transition:all .18s;white-space:nowrap;letter-spacing:.2px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.day-tab:hover{background:#fff;color:#1a1a2e;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.day-tab[data-day="1"].active{background:#2563eb;color:#fff;border-color:#1d4ed8;box-shadow:0 3px 12px rgba(37,99,235,.35)}
+.day-tab[data-day="2"].active{background:#059669;color:#fff;border-color:#047857;box-shadow:0 3px 12px rgba(5,150,105,.35)}
+/* Day background tints — applied to #main-screen via JS */
+#main-screen.day-1{background:#e8f0fe}
+#main-screen.day-1 #day-tabs-bar{background:#dbeafe;border-bottom-color:#93c5fd}
+#main-screen.day-1 #bottom-panel{background:#eef4ff!important;border-top-color:#93c5fd!important}
+#main-screen.day-1 #bottom-panel-header,#main-screen.day-1 #left-panel-header{border-bottom-color:#bfdbfe!important}
+#main-screen.day-2{background:#e0f5ec}
+#main-screen.day-2 #day-tabs-bar{background:#d1fae5;border-bottom-color:#6ee7b7}
+#main-screen.day-2 #bottom-panel{background:#edfaf4!important;border-top-color:#6ee7b7!important}
+#main-screen.day-2 #bottom-panel-header,#main-screen.day-2 #left-panel-header{border-bottom-color:#a7f3d0!important}
+
+#people-list{flex:1;overflow-x:hidden;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;align-items:flex-start;align-content:flex-start}
+#people-list.drag-over-unassign{background:#fff7ed;outline:2px dashed #f59e0b;outline-offset:-4px;border-radius:8px}
+
+/* Person cards — horizontal layout */
+.person-card{display:flex;flex-direction:column;padding:7px 10px;border-radius:9px;cursor:pointer;transition:background .1s;border:2px solid transparent;position:relative;background:#f9fafb;min-width:130px;max-width:150px;flex-shrink:0}
+.person-card:hover{background:#eff6ff;border-color:#bfdbfe}
+.person-card.selected{background:#eff6ff;border-color:#3b82f6}
+.person-card.assigned{opacity:.5}
+.person-card .person-name{font-weight:700;font-size:12px;line-height:1.3}
+.person-card .person-sub{font-size:11px;color:#6b7280;margin-top:2px}
+.person-card .assign-badge{font-size:10px;font-weight:700;color:#10b981;margin-top:3px;white-space:nowrap}
+.day-badge{font-size:10px;font-weight:700;display:inline-flex;gap:2px;align-items:center;white-space:nowrap;flex-shrink:0}
+.day-badge-d1{color:#fff;background:#2563eb;border-radius:4px;padding:1px 5px}
+.day-badge-d2{color:#fff;background:#059669;border-radius:4px;padding:1px 5px}
+.person-card.dropped{border:2px solid #f59e0b;background:#fffbeb}
+.person-card.dropped .person-name::after{content:' ⚠';color:#f59e0b;font-size:11px}
+.role-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:4px}
+.role-dot.cro{background:#f59e0b}
+.role-dot.rm{background:#7c3aed}
+.role-dot.ro{background:#3b82f6}
+.role-dot.crew{background:#6366f1}
+.role-dot.shooter{background:#10b981}
+
+/* Bottom panel action buttons */
+#left-panel-actions{padding:0 10px 0 4px;display:flex;align-items:center;gap:7px;flex-shrink:0}
+
+/* Upload zone (legacy) */
+#upload-zone{background:#fff;border:2px dashed #e5e7eb;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin:16px}
+#upload-zone:hover,#upload-zone.drag-over{border-color:#3b82f6;background:#eff6ff}
+#file-input{display:none}
+#upload-section{padding:12px;border-bottom:1px solid #e5e7eb}
+.upload-compact{border:1.5px dashed #e5e7eb;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;font-size:12px;color:#6b7280}
+.upload-compact:hover{border-color:#3b82f6;color:#3b82f6;background:#eff6ff}
+.upload-compact input{display:none}
+
+/* Shooter info popup */
+#shooter-popup{position:fixed;z-index:500;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:16px;width:260px;max-height:60vh;overflow-y:auto;display:none;pointer-events:auto}
+#shooter-popup .detail-name{font-size:16px;font-weight:800;margin-bottom:6px}
+#shooter-popup .detail-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+#shooter-popup .detail-badge{padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700}
+#shooter-popup .detail-section{margin-bottom:12px}
+#shooter-popup .detail-section h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:6px}
+#shooter-popup .detail-item{display:flex;align-items:flex-start;gap:7px;padding:5px 8px;border-radius:6px;font-size:12px;margin-bottom:3px;line-height:1.4}
+#shooter-popup .detail-item.ok{background:#f0fdf4;color:#065f46}
+#shooter-popup .detail-item.bad{background:#fef2f2;color:#991b1b}
+#shooter-popup .detail-item.neutral{background:#f9fafb;color:#374151}
+#shooter-popup .assign-info{font-size:12px;color:#374151;margin-bottom:10px;padding:6px 8px;background:#f9fafb;border-radius:6px}
+#shooter-popup .assign-info strong{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9ca3af;margin-bottom:2px}
+#shooter-popup-close{position:absolute;top:10px;right:12px;cursor:pointer;font-size:18px;color:#9ca3af;line-height:1}
+#shooter-popup-close:hover{color:#374151}
+
+/* Bay column */
+.bay-col{background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.bay-header{background:#1a1a2e;color:#fff;padding:10px 14px}
+.bay-header .bay-num{font-size:16px;font-weight:800}
+.bay-header .bay-stage-name{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
+.bay-header .bay-badges{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.bay6-2stage{background:#7c3aed;color:#fff;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:700}
+.staffing-badge{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:700}
+.staffing-badge.green{background:#d1fae5;color:#065f46}
+.staffing-badge.yellow{background:#fef3c7;color:#92400e}
+.staffing-badge.red{background:#fee2e2;color:#991b1b}
+
+/* Group section */
+.group-section{padding:10px}
+.group-section + .group-section{border-top:2px solid #f3f4f6}
+.group-label{font-size:12px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.group-label .shooter-count{font-size:11px;background:#e5e7eb;padding:1px 7px;border-radius:8px;font-weight:600}
+.work-section{background:#f0f4ff;border-radius:8px;padding:8px;margin-bottom:6px}
+.shoot-section{background:#f0fdf4;border-radius:8px;padding:8px}
+.section-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6b7280;margin-bottom:5px}
+
+/* Slots */
+.slot{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:6px;min-height:30px;cursor:pointer;transition:all .15s;margin-bottom:3px;border:1.5px dashed #d1d5db;background:#fff}
+.slot:hover{border-color:#3b82f6;background:#eff6ff}
+.slot.active-target{border:2px solid #3b82f6;background:#dbeafe;animation:pulse .8s infinite alternate}
+.slot.filled{border:1.5px solid transparent;background:transparent;cursor:default}
+.slot.drag-over{border:2px dashed #3b82f6!important;background:#dbeafe!important}
+@keyframes pulse{from{box-shadow:0 0 0 0 rgba(59,130,246,.4)}to{box-shadow:0 0 0 5px rgba(59,130,246,0)}}
+.slot-label{font-size:11px;color:#9ca3af;font-weight:600;white-space:nowrap}
+
+/* Chips */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:12px;font-weight:700;flex:1;min-width:0;position:relative}
+.chip.chip-cro{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+.chip.chip-rm{background:#ede9fe;color:#5b21b6;border:1px solid #7c3aed}
+.chip.chip-ro{background:#dbeafe;color:#1e40af;border:1px solid #3b82f6}
+.chip.chip-crew{background:#e0e7ff;color:#3730a3;border:1px solid #818cf8}
+.chip.chip-shooter{background:#d1fae5;color:#065f46;border:1px solid #10b981}
+.chip.conflict{background:#fee2e2!important;color:#991b1b!important;border-color:#ef4444!important;box-shadow:0 0 0 2px rgba(239,68,68,.3)}
+.chip.request-ok{box-shadow:0 0 0 2px rgba(16,185,129,.4)}
+.chip .chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.chip .chip-remove{cursor:pointer;opacity:.55;font-size:14px;flex-shrink:0;line-height:1}
+.chip .chip-remove:hover{opacity:1;color:#ef4444}
+.chip-rm{background:#ede9fe;color:#5b21b6;border:1px solid #7c3aed}
+
+/* Role badges */
+.badge-cro{background:#fef3c7;color:#92400e}
+.badge-ro{background:#dbeafe;color:#1e40af}
+.badge-crew{background:#e0e7ff;color:#3730a3}
+.badge-shooter{background:#d1fae5;color:#065f46}
+.badge-rm{background:#ede9fe;color:#5b21b6}
+
+.detail-item.ok{background:#f0fdf4;color:#065f46}
+.detail-item.warn{background:#fff7ed;color:#c2410c}
+.detail-item.bad{background:#fef2f2;color:#991b1b}
+.detail-item.neutral{background:#f9fafb;color:#374151}
+.detail-item .di-icon{flex-shrink:0;font-size:13px}
+#right-panel .assign-info{font-size:13px;color:#6b7280;background:#f9fafb;border-radius:7px;padding:9px 10px;line-height:1.5}
+.assign-info strong{color:#1f2937;display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+#right-empty{color:#9ca3af;font-size:14px;text-align:center;padding-top:40px}
+
+/* Conflicts bar */
+#conflicts-summary{display:none;background:#fff;border-top:1px solid #e5e7eb;padding:8px 18px;font-size:13px;color:#991b1b}
+
+/* Admin section */
+#admin-section{padding:12px 14px;border-bottom:2px solid #e5e7eb;background:#faf5ff}
+.admin-section-header{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#6b21a8;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.admin-cards-row{display:flex;gap:14px;flex-wrap:wrap}
+.admin-card{background:#fff;border:1.5px solid #ddd6fe;border-radius:10px;padding:12px 16px;min-width:240px;box-shadow:0 1px 4px rgba(124,58,237,.07)}
+.admin-card-title{font-size:13px;font-weight:700;color:#5b21b6;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.admin-grp-badge{padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700}
+.admin-grp-badge.grp-a{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.admin-grp-badge.grp-b{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.admin-slots-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.admin-slot{display:flex;align-items:center;gap:5px;padding:6px 8px;border-radius:6px;min-height:34px;cursor:pointer;transition:all .15s;border:1.5px dashed #c4b5fd;background:#faf5ff}
+.admin-slot:hover{border-color:#7c3aed;background:#ede9fe}
+.admin-slot.active-target{border:2px solid #7c3aed;background:#ddd6fe;animation:pulse .8s infinite alternate}
+.admin-slot.filled{border:1.5px solid transparent;background:transparent;cursor:default}
+.admin-slot.drag-over{border:2px dashed #7c3aed!important;background:#ddd6fe!important}
+.admin-slot-label{font-size:11px;color:#7c3aed;font-weight:700;white-space:nowrap}
+
+/* Toast */
+#toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:9px;color:#fff;font-size:14px;font-weight:700;max-width:340px;box-shadow:0 6px 16px rgba(0,0,0,.2);animation:slideIn .2s ease}
+.toast.error{background:#ef4444}
+.toast.warn{background:#f59e0b}
+.toast.success{background:#10b981}
+.toast.info{background:#3b82f6}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:14px;padding:26px;max-width:560px;width:90%;max-height:82vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.modal h2{font-size:19px;margin-bottom:18px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:16px;border-top:1px solid #e5e7eb}
+.parse-row{padding:9px;border-radius:7px;margin-bottom:6px;font-size:13px;line-height:1.5}
+.parse-row.ok{background:#f0fdf4;color:#065f46}
+.parse-row.warn{background:#fff7ed;color:#7c2d12}
+
+/* Request chips */
+.req-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #93c5fd;background:#eff6ff;color:#1e40af;transition:all .15s;margin:2px 0}
+.req-chip:hover{background:#dbeafe;border-color:#3b82f6}
+.req-chip.satisfied{background:#f0fdf4;border-color:#6ee7b7;color:#065f46;cursor:default}
+.req-chip.pending-link{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.req-chip.no-person{background:#f9fafb;border-color:#e5e7eb;color:#9ca3af;cursor:default}
+.req-chip .rc-plus{font-size:11px;opacity:.6}
+.req-chip:hover .rc-plus{opacity:1}
+
+/* Verification modal */
+#verify-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center}
+#verify-modal{background:#fff;border-radius:14px;padding:28px;width:700px;max-width:96vw;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+#verify-modal h2{font-size:19px;margin-bottom:5px}
+#verify-modal .verify-sub{font-size:14px;color:#6b7280;margin-bottom:22px}
+.verify-bay-row{display:grid;grid-template-columns:90px 90px 1fr 90px 80px 80px 70px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+.verify-bay-row.header{font-weight:700;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid #e5e7eb}
+.verify-bay-group{background:#f8faff;border-left:3px solid #3b82f6;margin-bottom:2px;border-radius:0 5px 5px 0}
+.verify-bay-row input[type=text],.verify-bay-row select,.verify-bay-row input[type=number]{width:100%;padding:6px 9px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:14px}
+.verify-footer{display:flex;justify-content:flex-end;gap:12px;margin-top:22px;padding-top:18px;border-top:1px solid #e5e7eb}
+
+/* Drag states */
+.person-card[draggable]{cursor:grab}
+.person-card[draggable]:active{cursor:grabbing}
+.slot.filled[draggable]{cursor:grab}
+
+/* Scrollbars */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+
+/* Tooltips */
+[data-tip]{position:relative;cursor:default}
+[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;font-size:12px;font-weight:500;line-height:1.4;padding:7px 12px;border-radius:7px;white-space:pre-wrap;max-width:240px;min-width:120px;text-align:center;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9000;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+[data-tip]::before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1a1a2e;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9001}
+[data-tip]:hover::after,[data-tip]:hover::before{opacity:1}
+
+/* How-to layout */
+#howto-content div{display:flex;align-items:flex-start;gap:0}
+#howto-content div span:first-child{flex-shrink:0;margin-top:1px}
+#howto-content div:last-child{display:block}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+  onerror="loadPdfJsFallback()"></script>
+<script>
+function loadPdfJsFallback(){
+  var s=document.createElement('script');
+  s.src='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+  s.onerror=function(){
+    var s2=document.createElement('script');
+    s2.src='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+</script>
+</head>
+<body>
+
+<div id="app-header">
+  <h1>&#9654; IPSC Squading</h1>
+  <input id="match-title-input" type="text" value="Match Title" placeholder="Enter match title...">
+  <select id="discipline-select" title="Discipline" style="margin-left:10px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer">
+    <option value="ipsc">IPSC / USPSA</option>
+    <option value="idpa">IDPA</option>
+    <option value="3gun">3-Gun</option>
+    <option value="steel">Steel Challenge</option>
+  </select>
+  <div class="spacer"></div>
+  <div id="group-counter" style="display:none">
+    <div class="counter-pill">Morning: <span id="cnt-a">0</span></div>
+    <div class="counter-pill">Afternoon: <span id="cnt-b">0</span></div>
+    <div class="counter-pill">Unassigned: <span id="cnt-u">0</span></div>
+    <div class="counter-pill" id="cnt-conflicts-pill" style="display:none;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4)">Conflicts: <span id="cnt-conflicts" style="color:#ef4444">0</span></div>
+  </div>
+  <div id="header-btns">
+    <button class="btn-icon" id="btn-go-setup" title="Add / Update Registration List" style="display:none;font-size:18px">&#128101;&#8314;</button>
+    <button class="btn btn-secondary btn-sm" id="btn-save" style="display:none">Save</button>
+    <button class="btn btn-secondary btn-sm" id="btn-load" style="display:none">Load</button>
+    <button class="btn btn-success btn-sm" id="btn-export-csv" style="display:none">Export Excel</button>
+    <button class="btn btn-primary btn-sm" id="btn-export-summary" style="display:none">Export Summary</button>
+  </div>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen" class="screen active">
+
+  <!-- Step bar -->
+  <div class="setup-steps">
+    <div class="setup-step">
+      <div class="setup-step-num active">1</div>
+      <div class="setup-step-label" data-tip="Upload match copy &amp; configure bays/stages"><strong>Stage &amp; Match Setup</strong></div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">2</div>
+      <div class="setup-step-label" data-tip="Upload registration list &amp; assign match administration"><strong>Load Competitors</strong></div>
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-num">3</div>
+      <div class="setup-step-label" data-tip="Drag people to bays, export when done"><strong>Squad &amp; Export</strong></div>
+    </div>
+  </div>
+
+  <!-- Match Type + Uploads in one row -->
+  <div class="setup-top-row">
+
+    <div class="setup-match-type-col">
+      <div class="section-title">Match Type</div>
+      <button class="match-type-btn active" id="mt-l2" onclick="setMatchType('L2')" data-tip="1 day match • squads reset each day">
+        <div class="mt-level">Level 2</div>
+        <div class="mt-sub">1-day match</div>
+      </button>
+      <button class="match-type-btn" id="mt-l3" onclick="setMatchType('L3')" data-tip="2-day match • squads carry over">
+        <div class="mt-level">Level 3</div>
+        <div class="mt-sub">2-day match</div>
+      </button>
+    </div>
+
+    <div class="setup-uploads-col">
+      <input type="file" id="setup-xlsx-input" accept=".pdf,.xlsx,.xls" style="display:none">
+      <div class="upload-card" id="upload-card-xlsx" onclick="document.getElementById('setup-xlsx-input').click()">
+        <div class="upload-card-icon">&#128196;</div>
+        <div class="upload-card-body">
+          <div class="upload-card-title" data-tip=".pdf or .xlsx&#10;Auto-fills bays &amp; stages">Match Copy</div>
+          <div class="upload-card-status" id="xlsx-status">
+            <span class="upload-dot pending"></span><span id="xlsx-status-text">Not uploaded</span>
+          </div>
+        </div>
+        <div class="upload-card-action">
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();document.getElementById('setup-xlsx-input').click()">Browse</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Bay Setup + PDF side panel -->
+  <div class="setup-bay-section">
+    <div class="setup-bay-main">
+      <div class="setup-bay-header">
+        <h2>Bay &amp; Stage Setup</h2>
+        <label for="num-bays">Bays:</label>
+        <input type="number" id="num-bays" min="1" max="12" value="6">
+        <button class="btn btn-primary btn-sm" id="btn-gen-bays" data-tip="Bays auto-fill from match copy&#10;or set manually here">&#9881; Apply</button>
+      </div>
+      <div id="bays-grid"></div>
+      <div id="setup-continue-row" style="margin-top:8px">
+        <button class="btn btn-success" id="btn-continue" style="font-size:15px;padding:12px 28px;font-weight:800">Go to Squadding &#8594;</button>
+      </div>
+    </div>
+
+    <!-- PDF Viewer side panel -->
+    <div id="pdf-viewer-wrap" style="display:none">
+      <div class="pdf-viewer-header">
+        <span class="pdf-title">&#128196; Stage Layouts</span>
+        <button class="btn btn-secondary btn-sm" id="pdf-prev" onclick="pdfGoPage(-1)">&#8592;</button>
+        <span id="pdf-page-indicator" style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap">1 / 1</span>
+        <button class="btn btn-secondary btn-sm" id="pdf-next" onclick="pdfGoPage(1)">&#8594;</button>
+        <button class="btn btn-secondary btn-sm" onclick="togglePdfViewer()" id="pdf-toggle-btn">Hide</button>
+      </div>
+      <div id="pdf-canvas-wrap">
+        <canvas id="pdf-canvas" style="max-width:100%;border-radius:2px;box-shadow:0 2px 8px rgba(0,0,0,.4)"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STEP 2 SCREEN -->
+<div id="step2-screen" class="screen">
+  <div style="padding:22px 26px;max-width:1400px;margin:0 auto">
+
+    <div class="setup-steps">
+      <div class="setup-step">
+        <div class="setup-step-num">1</div>
+        <div class="setup-step-label"><strong>Stage &amp; Match Setup</strong></div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num active">2</div>
+        <div class="setup-step-label"><strong>Load Competitors</strong></div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">3</div>
+        <div class="setup-step-label"><strong>Squad &amp; Export</strong></div>
+      </div>
+    </div>
+
+    <input type="file" id="setup-csv-input" accept=".csv" style="display:none">
+    <div class="setup-top-row" style="margin-bottom:0">
+      <div class="setup-uploads-col" style="flex:1">
+        <div class="upload-card" id="upload-card-csv-s2" onclick="document.getElementById('setup-csv-input').click()">
+          <div class="upload-card-icon">&#128101;</div>
+          <div class="upload-card-body">
+            <div class="upload-card-title" data-tip=".csv — loads competitor roster from Practiscore&#10;Upload multiple times to add or update competitors">Registration List</div>
+            <div class="upload-card-status" id="csv-status">
+              <span class="upload-dot pending"></span><span id="csv-status-text">Not uploaded</span>
+            </div>
+          </div>
+          <div class="upload-card-action">
+            <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();document.getElementById('setup-csv-input').click()">Browse</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;display:flex;gap:12px;justify-content:space-between">
+      <button class="btn btn-secondary" id="btn-back-to-step1" style="font-size:14px;padding:10px 22px">&#8592; Back to Stage Setup</button>
+      <button class="btn btn-success" id="btn-continue-to-squading" style="font-size:15px;padding:12px 28px;font-weight:800">Go to Squadding &#8594;</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="main-screen" class="screen">
+  <!-- Day selector bar — sits at top, full width, centered -->
+  <div id="day-tabs-bar" style="display:none"></div>
+  <div id="main-layout">
+    <!-- Center Panel — bay grid -->
+    <div id="center-panel">
+      <!-- Admin Section -->
+      <div id="admin-section" style="display:none">
+        <div class="admin-section-header">&#9733; Match Administration</div>
+        <div class="admin-cards-row" id="admin-cards-row"></div>
+      </div>
+      <div id="bay-grid"></div>
+    </div>
+
+    <!-- Bottom People Strip -->
+    <div id="bottom-panel" style="display:none">
+      <div id="bottom-resize-handle" title="Drag to resize"></div>
+      <div id="left-panel-header" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #e5e7eb;flex-shrink:0">
+        <input type="text" id="search-box" placeholder="&#128269; Search...">
+        <div class="filter-row" id="role-filters">
+          <button class="filter-btn active" data-role="all">All</button>
+          <button class="filter-btn" data-role="cro">CRO</button>
+          <button class="filter-btn" data-role="rm">RM</button>
+          <button class="filter-btn" data-role="ro">RO</button>
+          <button class="filter-btn" data-role="official">Shooter</button>
+          <button class="filter-btn" data-role="unassigned">Unassigned</button>
+        </div>
+        <div class="filter-row" id="group-filters">
+          <button class="filter-btn active" data-grp="all">All</button>
+          <button class="filter-btn" data-grp="A">Morning</button>
+          <button class="filter-btn" data-grp="B">Afternoon</button>
+          <button class="filter-btn" data-grp="none">No Group</button>
+        </div>
+        <div class="filter-row" id="day-filters" style="display:none"></div>
+        <div id="left-panel-actions" style="display:none;margin-left:auto">
+          <button class="btn btn-sm btn-danger" id="btn-clear-all">&#128465; Clear All</button>
+        </div>
+      </div>
+      <div id="people-list"></div>
+    </div>
+  </div>
+  <div id="conflicts-summary"></div>
+
+  <!-- hidden file input kept for legacy JS references -->
+  <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none">
+  <label id="upload-label" style="display:none"><input type="file" style="display:none"></label>
+  <div id="upload-section" style="display:none"></div>
+</div>
+
+<!-- Shooter Info Popup -->
+<div id="shooter-popup">
+  <span id="shooter-popup-close" onclick="closeShooterPopup()">&#215;</span>
+  <div id="shooter-popup-body"></div>
+</div>
+
+<!-- Stage image hover preview -->
+<img id="stage-img-preview" class="stage-img-preview" src="" alt="">
+
+<!-- Stage Image Lightbox -->
+<div id="stage-lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:10px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="display:flex;gap:10px;align-items:center">
+    <button onclick="_pdfPage>1&&renderLightboxPage(_pdfPage-1)" style="padding:6px 14px;border-radius:6px;border:none;background:#fff;cursor:pointer;font-size:16px">&#8592;</button>
+    <span id="lightbox-page-label" style="color:#fff;font-size:13px;min-width:100px;text-align:center"></span>
+    <button onclick="_pdfPage<(_pdfDoc?_pdfDoc.numPages:1)&&renderLightboxPage(_pdfPage+1)" style="padding:6px 14px;border-radius:6px;border:none;background:#fff;cursor:pointer;font-size:16px">&#8594;</button>
+    <button onclick="document.getElementById('stage-lightbox').style.display='none'" style="padding:6px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:14px;margin-left:10px">&#215; Close</button>
+  </div>
+  <canvas id="lightbox-canvas" style="max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)"></canvas>
+</div>
+
+<!-- Hidden file input for load state -->
+<input type="file" id="state-file-input" accept=".json" style="display:none">
+
+
+<!-- Verification Modal -->
+<div id="verify-modal-overlay" style="display:none">
+  <div id="verify-modal">
+    <h2>&#10003; Verify Bay &amp; Stage Setup</h2>
+    <p class="verify-sub">Review the auto-filled details below. Update stage name, length, round count, targets, and prop count for each bay before continuing.</p>
+    <div id="verify-bay-rows"></div>
+    <div class="verify-footer">
+      <button class="btn btn-secondary" onclick="closeVerifyModal()">Back</button>
+      <button class="btn btn-success" onclick="confirmVerify()">Looks good — Continue to Squadding &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+// ============================================================
+// HOW-TO TOGGLE
+// ============================================================
+function toggleHowto(){
+  const content=document.getElementById('howto-content');
+  const arrow=document.getElementById('howto-arrow');
+  if(!content) return;
+  const isOpen=content.style.display!=='none';
+  content.style.display=isOpen?'none':'block';
+  arrow.textContent=isOpen?'▶':'▼';
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  bays: [],         // [{id, name, length, rounds, targets, stages, props}]
+  people: [],       // [{id, firstName, lastName, role, division, class_, requests, exclusions, group, mentor, firstMatch}]
+  assignments: {},  // pointer to dayAssignments[activeDay] — do not overwrite directly
+  dayAssignments: {1:{}}, // { dayNum: { "bayId-group-slotKey": personId } }
+  adminAssignments:{},// pointer to dayAdminAssignments[activeDay] — do not overwrite directly
+  dayAdminAssignments:{1:{}},// { dayNum: { "admin-A-MD": personId } }
+  activeDay: 1,
+  nextPersonId: 1,
+  activeSlot: null,
+  selectedPersonId: null,
+  discipline: 'ipsc', // 'ipsc' | 'idpa' | '3gun' | 'steel'
+  matchType: 'L2', // 'L2' or 'L3'
+  uploads: {xlsx: false, csv: false},
+  matchDays: [],      // ordered unique date-strings parsed from CSV filenames; index+1 = day number
+  uploadedFiles: [],  // [{name, day, added, updated, ts}] — one entry per upload
+  _pendingLinks: new Set(),
+};
+state.assignments = state.dayAssignments[1]; // point to Day 1 dict
+state.adminAssignments = state.dayAdminAssignments[1]; // point to Day 1 admin dict
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const GROUPS = ['A','B'];
+const WORK_SLOTS = [
+  {key:'CRO',label:'CRO',type:'cro'},
+  {key:'RO1',label:'RO 1',type:'ro'},
+  {key:'RO2',label:'RO 2',type:'ro'},
+  {key:'RO3',label:'RO 3',type:'ro'},
+  {key:'Crew1',label:'Crew 1',type:'crew'},
+  {key:'Crew2',label:'Crew 2',type:'crew'},
+  {key:'Crew3',label:'Crew 3',type:'crew'},
+  {key:'Crew4',label:'Crew 4',type:'crew'},
+  {key:'Crew5',label:'Crew 5',type:'crew'},
+  {key:'Crew6',label:'Crew 6',type:'crew'},
+  {key:'Crew7',label:'Crew 7',type:'crew'},
+  {key:'Crew8',label:'Crew 8',type:'crew'},
+];
+const SHOOT_SLOTS = Array.from({length:11},(_,i)=>({key:`S${i+1}`,label:`Shooter ${i+1}`,type:'shooter'}));
+const ADMIN_SLOTS = [
+  {key:'MD',label:'MD',title:'Match Director'},
+  {key:'RM',label:'RM',title:'Range Master'},
+  {key:'Stats',label:'Stats',title:'Statistics Officer'},
+  {key:'QM',label:'QM',title:'Quartermaster'},
+];
+// ============================================================
+// DISCIPLINE CONFIGS
+// ============================================================
+const DISCIPLINE_CONFIGS = {
+  ipsc: {
+    name: 'IPSC / USPSA',
+    slotLabels: { CRO:'CRO', RO1:'RO 1', RO2:'RO 2', RO3:'RO 3',
+      Crew1:'Crew 1',Crew2:'Crew 2',Crew3:'Crew 3',Crew4:'Crew 4',
+      Crew5:'Crew 5',Crew6:'Crew 6',Crew7:'Crew 7',Crew8:'Crew 8' },
+    adminTitles: { MD:'Match Director', RM:'Range Master', Stats:'Statistics Officer', QM:'Quartermaster' },
+    bayLabel: 'Bay', stageLabel: 'Stage',
+  },
+  idpa: {
+    name: 'IDPA',
+    slotLabels: { CRO:'CSO', RO1:'SO 1', RO2:'SO 2', RO3:'SO 3',
+      Crew1:'Crew 1',Crew2:'Crew 2',Crew3:'Crew 3',Crew4:'Crew 4',
+      Crew5:'Crew 5',Crew6:'Crew 6',Crew7:'Crew 7',Crew8:'Crew 8' },
+    adminTitles: { MD:'Match Director', RM:'Safety Coordinator', Stats:'Stats Officer', QM:'Equipment Officer' },
+    bayLabel: 'Bay', stageLabel: 'Stage',
+  },
+  '3gun': {
+    name: '3-Gun',
+    slotLabels: { CRO:'CRO', RO1:'RO 1', RO2:'RO 2', RO3:'RO 3',
+      Crew1:'Crew 1',Crew2:'Crew 2',Crew3:'Crew 3',Crew4:'Crew 4',
+      Crew5:'Crew 5',Crew6:'Crew 6',Crew7:'Crew 7',Crew8:'Crew 8' },
+    adminTitles: { MD:'Match Director', RM:'Range Master', Stats:'Statistics Officer', QM:'Quartermaster' },
+    bayLabel: 'Bay', stageLabel: 'Stage',
+  },
+  steel: {
+    name: 'Steel Challenge',
+    slotLabels: { CRO:'CRO', RO1:'RO 1', RO2:'RO 2', RO3:'RO 3',
+      Crew1:'Crew 1',Crew2:'Crew 2',Crew3:'Crew 3',Crew4:'Crew 4',
+      Crew5:'Crew 5',Crew6:'Crew 6',Crew7:'Crew 7',Crew8:'Crew 8' },
+    adminTitles: { MD:'Match Director', RM:'Range Master', Stats:'Statistics Officer', QM:'Quartermaster' },
+    bayLabel: 'Stage', stageLabel: 'Stage',
+  },
+};
+
+function applyDisciplineLabels(){
+  const cfg = DISCIPLINE_CONFIGS[state.discipline] || DISCIPLINE_CONFIGS.ipsc;
+  WORK_SLOTS.forEach(s => { if(cfg.slotLabels[s.key]) s.label = cfg.slotLabels[s.key]; });
+  ADMIN_SLOTS.forEach(s => { if(cfg.adminTitles[s.key]) s.title = cfg.adminTitles[s.key]; });
+  // Update app header title
+  const h1 = document.querySelector('#app-header h1');
+  if(h1) h1.innerHTML = '&#9654; ' + cfg.name + ' Squading';
+  // Update filter button labels (CRO → CSO for IDPA etc)
+  const croBtnEl = document.querySelector('.filter-btn[data-role="cro"]');
+  if(croBtnEl) croBtnEl.textContent = cfg.slotLabels.CRO || 'CRO';
+  const roBtnEl = document.querySelector('.filter-btn[data-role="ro"]');
+  if(roBtnEl) roBtnEl.textContent = (cfg.slotLabels.RO1||'RO 1').replace(/ \d$/,'');
+  // Sync selector
+  const sel = document.getElementById('discipline-select');
+  if(sel && sel.value !== state.discipline) sel.value = state.discipline;
+}
+
+const ROLE_MAP = {
+  'cro':'CRO','chief range officer':'CRO',
+  'range master':'RM','rm':'RM',
+  'range officer':'RO','ro':'RO',
+  'not an official':'Not Official','not official':'Not Official',
+  'shooter':'Not Official',
+};
+
+// ============================================================
+// UTILITY
+// ============================================================
+function uid(){return 'p'+(state.nextPersonId++)}
+function toast(msg,type='info',dur=3200){
+  const el=document.createElement('div');
+  el.className='toast '+type;el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),dur);
+}
+function roleDotClass(role){
+  if(role==='CRO') return 'cro';
+  if(role==='RM') return 'rm';
+  if(role==='RO') return 'ro';
+  return 'shooter';
+}
+function chipClass(role){
+  if(role==='CRO') return 'chip-cro';
+  if(role==='RM') return 'chip-rm';
+  if(role==='RO') return 'chip-ro';
+  return 'chip-crew';
+}
+function slotChipClass(slotType){
+  if(slotType==='cro') return 'chip-cro';
+  if(slotType==='ro') return 'chip-ro';
+  if(slotType==='crew') return 'chip-crew';
+  return 'chip-shooter';
+}
+function badgeClass(role){
+  if(role==='CRO') return 'badge-cro';
+  if(role==='RM') return 'badge-rm';
+  if(role==='RO') return 'badge-ro';
+  return 'badge-crew';
+}
+function roleFilterMatch(person, filter){
+  if(filter==='all') return true;
+  if(filter==='cro') return person.role==='CRO';
+  if(filter==='rm') return person.role==='RM';
+  if(filter==='ro') return person.role==='RO';
+  if(filter==='official') return person.role==='Not Official';
+  if(filter==='unassigned') return !personAssignment(person.id)&&!adminPersonAssignment(person.id);
+  return true;
+}
+function grpFilterMatch(person, filter){
+  if(filter==='all') return true;
+  if(filter==='A') return person.group==='A';
+  if(filter==='B') return person.group==='B';
+  if(filter==='none') return !person.group;
+  return true;
+}
+function personAssignment(pid){
+  for(const [k,v] of Object.entries(state.assignments)){
+    if(v===pid) return k;
+  }
+  return null;
+}
+function adminPersonAssignment(pid){
+  for(const [k,v] of Object.entries(state.adminAssignments)){
+    if(v===pid) return k;
+  }
+  return null;
+}
+function adminSlotKey(group,sk){return `admin-${group}-${sk}`}
+function parseAdminSlotKey(k){const p=k.split('-');return{group:p[1],sk:p[2]}}
+function getPersonById(id){return state.people.find(p=>p.id===id)}
+function slotKey(bayId,group,sk){return `${bayId}-${group}-${sk}`}
+function parseSlotKey(k){const p=k.split('-');return{bayId:parseInt(p[0]),group:p[1],sk:p[2]}}
+function slotTypeFor(sk){
+  if(sk==='CRO') return 'cro';
+  if(sk.startsWith('RO')) return 'ro';
+  if(sk.startsWith('Crew')) return 'crew';
+  return 'shooter';
+}
+function getBayGroup(bayId,group){
+  const res={work:{},shoot:{}};
+  for(const ws of WORK_SLOTS){
+    const k=slotKey(bayId,group,ws.key);
+    if(state.assignments[k]) res.work[ws.key]=state.assignments[k];
+  }
+  for(const ss of SHOOT_SLOTS){
+    const k=slotKey(bayId,group,ss.key);
+    if(state.assignments[k]) res.shoot[ss.key]=state.assignments[k];
+  }
+  return res;
+}
+function allPeopleInBayGroup(bayId,group){
+  const ids=[];
+  for(const ws of WORK_SLOTS){
+    const k=slotKey(bayId,group,ws.key);
+    if(state.assignments[k]) ids.push(state.assignments[k]);
+  }
+  for(const ss of SHOOT_SLOTS){
+    const k=slotKey(bayId,group,ss.key);
+    if(state.assignments[k]) ids.push(state.assignments[k]);
+  }
+  return ids;
+}
+
+// ============================================================
+// CONFLICT DETECTION
+// ============================================================
+function hasConflict(pid){
+  const p=getPersonById(pid);if(!p) return false;
+  const ak=personAssignment(pid);if(!ak) return false;
+  const {bayId,group}=parseSlotKey(ak);
+  const teammates=allPeopleInBayGroup(bayId,group).filter(id=>id!==pid);
+  for(const excl of p.exclusions){
+    if(teammates.some(id=>{const t=getPersonById(id);return t&&(t.firstName+' '+t.lastName).toLowerCase().includes(excl.toLowerCase())})){
+      return true;
+    }
+  }
+  // Check if others excluded this person
+  for(const tid of teammates){
+    const t=getPersonById(tid);if(!t) continue;
+    for(const excl of t.exclusions){
+      if((p.firstName+' '+p.lastName).toLowerCase().includes(excl.toLowerCase())) return true;
+    }
+  }
+  return false;
+}
+function getConflictsForSlot(bayId,group,sk){
+  const k=slotKey(bayId,group,sk);
+  const pid=state.assignments[k];if(!pid) return false;
+  return hasConflict(pid);
+}
+function isRequestSatisfied(pid,reqName){
+  const ak=personAssignment(pid);if(!ak) return false;
+  const {bayId,group}=parseSlotKey(ak);
+  const teammates=allPeopleInBayGroup(bayId,group);
+  return teammates.some(id=>{
+    const t=getPersonById(id);
+    return t&&(t.firstName+' '+t.lastName).toLowerCase().includes(reqName.toLowerCase());
+  });
+}
+function totalConflicts(){
+  let n=0;
+  for(const [k,pid] of Object.entries(state.assignments)){
+    if(hasConflict(pid)) n++;
+  }
+  return Math.floor(n/2);
+}
+
+// ============================================================
+// CSV PARSING
+// ============================================================
+function parseCSV(text){
+  const rows=[];
+  let i=0,n=text.length;
+  while(i<n){
+    const row=[];
+    while(i<n&&text[i]!=='\n'&&text[i]!=='\r'){
+      if(text[i]==='"'){
+        i++;let cell='';
+        while(i<n){
+          if(text[i]==='"'&&text[i+1]==='"'){cell+='"';i+=2;}
+          else if(text[i]==='"'){i++;break;}
+          else{cell+=text[i++];}
+        }
+        row.push(cell);
+        if(i<n&&text[i]===',') i++;
+      } else {
+        let cell='';
+        while(i<n&&text[i]!==','&&text[i]!=='\n'&&text[i]!=='\r'){cell+=text[i++];}
+        row.push(cell.trim());
+        if(i<n&&text[i]===',') i++;
+      }
+    }
+    if(text[i]==='\r') i++;
+    if(text[i]==='\n') i++;
+    if(row.length>1||(row.length===1&&row[0]!=='')) rows.push(row);
+  }
+  return rows;
+}
+function normalizeRole(raw){
+  if(!raw) return 'Not Official';
+  const r=raw.toLowerCase().trim();
+  return ROLE_MAP[r]||'Not Official';
+}
+function parseRequests(raw){
+  if(!raw||!raw.trim()) return {requests:[],exclusions:[]};
+  const requests=[],exclusions=[];
+  const lines=raw.split(/[.\n;]+/).map(s=>s.trim()).filter(Boolean);
+  for(const line of lines){
+    const lu=line.toUpperCase();
+    if(lu.includes('DO NOT')||lu.includes('NOT WITH')||lu.includes('DO NOT SQUAD')||lu.includes('NOT WITH')){
+      const cleaned=line.replace(/do not squad with|do not be with|not with|do not|please not|squad with/gi,'').trim();
+      const names=extractNames(cleaned);
+      exclusions.push(...names);
+    } else {
+      const cleaned=line.replace(/please squad with|squad with|please with|with|please|squad/gi,'').trim();
+      const names=extractNames(cleaned);
+      requests.push(...names);
+    }
+  }
+  return {requests:[...new Set(requests)],exclusions:[...new Set(exclusions)]};
+}
+function extractNames(text){
+  // Split on commas, ampersands, slashes, or the word "and" — NOT on individual letters
+  return text.split(/\s*[,\/&]\s*|\s+and\s+/i).map(s=>s.trim()).filter(s=>s.length>2&&!/^\d+$/.test(s));
+}
+// Extract a sortable date string (YYYY-MM-DD) from a filename, or null if none found
+function parseDateFromFilename(filename){
+  const s=filename.replace(/\.[^.]+$/,''); // strip extension
+  const MONTHS={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+    january:1,february:2,march:3,april:4,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+  // ISO: 2026-06-14 or 20260614
+  let m=s.match(/\b(20\d{2})[-_./]?(\d{2})[-_./]?(\d{2})\b/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  // DD/MM/YYYY or MM/DD/YYYY variants: 14-06-2026, 06-14-2026
+  m=s.match(/\b(\d{1,2})[-_./](\d{1,2})[-_./](20\d{2})\b/);
+  if(m){
+    const a=parseInt(m[1]),b=parseInt(m[2]),yr=m[3];
+    // If first part >12 it must be day; assume DD-MM-YYYY
+    const dd=a>12?a:b, mm=a>12?b:a;
+    return `${yr}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  }
+  // "June 14" or "14 June" or "Jun14" with optional year
+  m=s.match(/\b([a-zA-Z]{3,9})[\s_-]?(\d{1,2})(?:[\s_-]?(20\d{2}))?\b/i);
+  if(m){
+    const mo=MONTHS[m[1].toLowerCase()];
+    if(mo){
+      const yr=m[3]||new Date().getFullYear();
+      return `${yr}-${String(mo).padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    }
+  }
+  m=s.match(/\b(\d{1,2})[\s_-]([a-zA-Z]{3,9})(?:[\s_-]?(20\d{2}))?\b/i);
+  if(m){
+    const mo=MONTHS[m[2].toLowerCase()];
+    if(mo){
+      const yr=m[3]||new Date().getFullYear();
+      return `${yr}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    }
+  }
+  // "Day 1" / "Day 2" fallback — return synthetic key so days stay distinct
+  m=s.match(/\bday\s*(\d+)\b/i);
+  if(m) return `day-${m[1]}`;
+  return null;
+}
+
+function importCSV(text, filename=''){
+  const rows=parseCSV(text);
+  if(rows.length<2){toast('CSV appears empty or invalid','error');return;}
+  const header=rows[0].map(h=>h.toLowerCase().trim());
+  const get=(row,col)=>{
+    const possibleCols=typeof col==='string'?[col]:col;
+    for(const c of possibleCols){
+      const idx=header.findIndex(h=>h.includes(c));
+      if(idx>=0) return (row[idx]||'').trim();
+    }
+    return '';
+  };
+
+  // --- Resolve match day from filename ---
+  // Primary: parse a date from the filename. Fallback: use the filename itself as a unique day key.
+  let dateKey=parseDateFromFilename(filename);
+  // If no date found, use the filename as the key so each unique file still gets its own day slot.
+  // Only do this if a filename was actually provided (not a bare paste with no name).
+  if(!dateKey && filename){
+    // Check if this filename was already uploaded — if so, reuse its existing day key
+    const prev=state.uploadedFiles.find(f=>f.name===filename);
+    if(prev && prev.dayKey){
+      dateKey=prev.dayKey;
+    } else {
+      // Assign a new sequential key based on how many unique days exist so far
+      dateKey=`upload-${state.matchDays.length+1}`;
+    }
+  }
+  let matchDay=null; // 1-based day number, or null if still no key
+  if(dateKey){
+    if(!state.matchDays.includes(dateKey)){
+      state.matchDays.push(dateKey);
+      // Sort: real ISO dates sort correctly; synthetic keys (day-N, upload-N) sort after real dates
+      state.matchDays.sort();
+    }
+    matchDay=state.matchDays.indexOf(dateKey)+1; // Day 1, Day 2, …
+    // Ensure dayAssignments dicts exist for this day
+    if(!state.dayAssignments[matchDay]) state.dayAssignments[matchDay]={};
+    if(!state.dayAdminAssignments[matchDay]) state.dayAdminAssignments[matchDay]={};
+    // Re-sync activeDay day number in case sort shifted day indices
+    if(state.activeDay > state.matchDays.length) state.activeDay=1;
+    state.assignments = state.dayAssignments[state.activeDay];
+    state.adminAssignments = state.dayAdminAssignments[state.activeDay];
+  }
+
+  // Build a lookup of existing people by normalised full name for dedup
+  const nameKey=(f,l)=>(f+' '+l).toLowerCase().replace(/\s+/g,' ').trim();
+  const existing=new Map(state.people.map(p=>[nameKey(p.firstName,p.lastName),p]));
+  let added=0,updated=0,same=0,skipped=0;
+  for(let i=1;i<rows.length;i++){
+    const row=rows[i];
+    if(row.every(c=>!c)) continue;
+    const firstName=get(row,['first name','firstname','first']);
+    const lastName=get(row,['last name','lastname','last']);
+    if(!firstName&&!lastName){skipped++;continue;}
+    const roleRaw=get(row,['range official','role','official']);
+    const role=normalizeRole(roleRaw);
+    const division=get(row,['division','div']);
+    const classVal=get(row,['class']);
+    const reqRaw=get(row,['squad request','request']);
+    const {requests,exclusions}=parseRequests(reqRaw);
+    const approval=get(row,['approval','approved']);
+    const paid=get(row,['paid']);
+    const key=nameKey(firstName,lastName);
+    if(existing.has(key)){
+      // Update existing record — keep id, group, and original matchDay; refresh everything else
+      const p=existing.get(key);
+      const wasFromDifferentDay = matchDay!==null && p.matchDay!==null && p.matchDay!==matchDay;
+      p.role=role; p.division=division; p.class_=classVal;
+      p.requests=requests; p.exclusions=exclusions;
+      if(approval) p.approval=approval;
+      if(paid) p.paid=paid;
+      p.rawRequests=reqRaw;
+      // Track all days this person appears in, but DON'T overwrite their primary matchDay
+      if(matchDay!==null){
+        if(!p.allMatchDays) p.allMatchDays=p.matchDay?[p.matchDay]:[];
+        if(!p.allMatchDays.includes(matchDay)) p.allMatchDays.push(matchDay);
+        // Only set matchDay if not already set
+        if(!p.matchDay) p.matchDay=matchDay;
+      }
+      if(wasFromDifferentDay) same++; else updated++;
+    } else {
+      const person={
+        id:uid(),firstName,lastName,role,division,class_:classVal,
+        requests,exclusions,group:null,
+        approval,paid,rawRequests:reqRaw,
+        matchDay,  // first day this person was seen
+        allMatchDays: matchDay!==null ? [matchDay] : []
+      };
+      state.people.push(person);
+      existing.set(key,person);
+      added++;
+    }
+  }
+  // --- Removal detection: only when re-uploading a file we've seen before for the same day ---
+  let removed=0, flagged=[];
+  const prevFileEntry=state.uploadedFiles.find(f=>f.name===filename);
+  if(prevFileEntry && matchDay!==null){
+    // Find people tagged to this day who weren't in the new file
+    const seenKeys=new Set([...existing.keys()]); // existing was built from state.people at start
+    // Actually rebuild from the CSV rows we just processed
+    const csvKeys=new Set();
+    for(let i=1;i<rows.length;i++){
+      const row=rows[i]; if(row.every(c=>!c)) continue;
+      const fn=get(row,['first name','firstname','first']);
+      const ln=get(row,['last name','lastname','last']);
+      if(fn||ln) csvKeys.add(nameKey(fn,ln));
+    }
+    const dropped=state.people.filter(p=>p.matchDay===matchDay && !csvKeys.has(nameKey(p.firstName,p.lastName)));
+    for(const p of dropped){
+      const assigned=!!(personAssignment(p.id)||adminPersonAssignment(p.id));
+      if(assigned){
+        p._dropped=true; // mark for visual warning, don't remove
+        flagged.push(`${p.firstName} ${p.lastName}`);
+      } else {
+        state.people.splice(state.people.indexOf(p),1);
+        removed++;
+      }
+    }
+  }
+
+  if(added>0||updated>0||same>0||removed>0){
+    state.uploads.csv=true;
+    // Record this upload in the file log
+    const fileEntry=state.uploadedFiles.find(f=>f.name===filename);
+    if(fileEntry){
+      fileEntry.added+=added; fileEntry.updated+=updated; fileEntry.same=(fileEntry.same||0)+same; fileEntry.removed=(fileEntry.removed||0)+removed; fileEntry.ts=Date.now();
+    } else {
+      state.uploadedFiles.push({name:filename||'(unknown)',day:matchDay,dayKey:dateKey,added,updated,same,removed:0,ts:Date.now()});
+    }
+    updateUploadStatus();
+  }
+  const parts=[];
+  if(same>0) parts.push(`${same} same`);
+  if(added>0) parts.push(`${added} new`);
+  if(updated>0) parts.push(`${updated} updated`);
+  if(removed>0) parts.push(`${removed} removed`);
+  if(skipped>0) parts.push(`${skipped} skipped`);
+  const total=state.people.length;
+  const dayLabel=matchDay?` → Day ${matchDay}`:'';
+  const dateHint=dateKey&&dateKey.startsWith('upload-')?` (no date in filename)`:dateKey?` (${dateKey})`:'';
+  toast(`${parts.join(', ')}${dayLabel}${dateHint} — ${total} total`, (added>0||updated>0||removed>0)?'success':'warn');
+  if(flagged.length){
+    setTimeout(()=>toast(`⚠ ${flagged.length} dropped competitor${flagged.length>1?'s':''} still assigned to bays — review manually: ${flagged.slice(0,3).join(', ')}${flagged.length>3?` +${flagged.length-3} more`:''}`, 'warn', 7000), 400);
+  }
+  // Update the status text to show running total
+  const csvText=document.getElementById('csv-status-text');
+  if(csvText) csvText.innerHTML=csvStatusLabel();
+  renderPeopleList();
+  updateCounters();
+}
+
+// ============================================================
+// SAMPLE DATA
+// ============================================================
+function loadSampleData(){
+  state.people=[];state.assignments={};state.nextPersonId=1;
+  const samples=[
+    {firstName:'Alice',lastName:'Nguyen',role:'CRO',division:'Open',class_:'M',requests:['Bob','Carol'],exclusions:[]},
+    {firstName:'Bob',lastName:'Kim',role:'CRO',division:'Standard',class_:'A',requests:['Alice'],exclusions:[]},
+    {firstName:'Carol',lastName:'Patel',role:'RM',division:'Open',class_:'GM',requests:[],exclusions:[]},
+    {firstName:'Dave',lastName:'Santos',role:'RO',division:'Production',class_:'B',requests:['Eve'],exclusions:[]},
+    {firstName:'Eve',lastName:'Okonkwo',role:'RO',division:'Standard',class_:'A',requests:['Dave'],exclusions:['Frank']},
+    {firstName:'Frank',lastName:'Torres',role:'RO',division:'Production',class_:'C',requests:[],exclusions:['Eve']},
+    {firstName:'Grace',lastName:'Lindqvist',role:'Not Official',division:'Classic',class_:'B',requests:['Hank'],exclusions:[]},
+    {firstName:'Hank',lastName:'Mueller',role:'Not Official',division:'Production',class_:'D',requests:['Grace'],exclusions:[]},
+    {firstName:'Iris',lastName:'Chen',role:'Not Official',division:'Open',class_:'A',requests:[],exclusions:[]},
+    {firstName:'Jake',lastName:'Osei',role:'Not Official',division:'Standard',class_:'C',requests:[],exclusions:[]},
+    {firstName:'Karen',lastName:'Rossi',role:'Not Official',division:'Production',class_:'B',requests:[],exclusions:[]},
+    {firstName:'Leo',lastName:'Yamamoto',role:'RO',division:'Standard',class_:'A',requests:[],exclusions:[]},
+  ];
+  for(const s of samples){
+    state.people.push({id:uid(),...s,group:null,approval:'Approved',paid:'Paid',rawRequests:''});
+  }
+  toast('Sample data loaded (12 people)','success');
+  renderPeopleList();updateCounters();
+}
+
+// ============================================================
+// MATCH TYPE
+// ============================================================
+function setMatchType(type){
+  state.matchType=type;
+  document.getElementById('mt-l2').classList.toggle('active',type==='L2');
+  document.getElementById('mt-l3').classList.toggle('active',type==='L3');
+}
+
+// ============================================================
+// UPLOAD STATUS
+// ============================================================
+function csvStatusLabel(){
+  const dayColors={1:'#2563eb',2:'#059669'};
+  if(!state.uploads.csv||state.people.length===0) return 'Not uploaded';
+  if(state.matchDays.length>1){
+    const parts=state.matchDays.map((_,i)=>{
+      const d=i+1;
+      const col=dayColors[d]||'#6366f1';
+      // Total registered for this day (anyone whose allMatchDays includes d)
+      const inDay=state.people.filter(p=>p.allMatchDays&&p.allMatchDays.includes(d));
+      const n=inDay.length;
+      const sameCount=inDay.filter(p=>p.allMatchDays.some(x=>x<d)).length;
+      const newCount=n-sameCount;
+      const badge=`<span style="background:${col};color:#fff;border-radius:3px;padding:0 4px;font-size:10px;font-weight:700">D${d}</span>`;
+      const detail=d>1&&sameCount>0?` <span style="font-size:10px;color:#64748b">(${sameCount}+${newCount})</span>`:'';
+      return `<span style="display:inline-flex;align-items:center;gap:3px">${badge}${n}${detail}</span>`;
+    });
+    const untagged=state.people.filter(p=>!p.matchDay&&!(p.allMatchDays&&p.allMatchDays.length)).length;
+    if(untagged) parts.push(`<span style="color:#9ca3af">+${untagged}</span>`);
+    return '✓ '+parts.join(' · ');
+  }
+  return `✓ ${state.people.length} competitors`;
+}
+function updateUploadStatus(){
+  const {xlsx,csv}=state.uploads;
+  // XLSX card
+  const xlsxCard=document.getElementById('upload-card-xlsx');
+  const xlsxDot=xlsxCard&&xlsxCard.querySelector('.upload-dot');
+  const xlsxText=document.getElementById('xlsx-status-text');
+  if(xlsxCard) xlsxCard.classList.toggle('loaded',xlsx);
+  if(xlsxDot){ xlsxDot.className='upload-dot '+(xlsx?'ok':'pending'); }
+  if(xlsxText) xlsxText.textContent=xlsx?'✓ Loaded':'Not uploaded';
+  // CSV card (now on step 2 screen)
+  const csvCard=document.getElementById('upload-card-csv-s2');
+  const csvDot=csvCard&&csvCard.querySelector('.upload-dot');
+  const csvText=document.getElementById('csv-status-text');
+  if(csvCard) csvCard.classList.toggle('loaded',csv);
+  if(csvDot){ csvDot.className='upload-dot '+(csv?'ok':'pending'); }
+  if(csvText) csvText.innerHTML=csvStatusLabel();
+  // Render per-day summary + file list below the status line
+  const csvBody=document.querySelector('#upload-card-csv-s2 .upload-card-body');
+  let csvDetail=document.getElementById('csv-upload-detail');
+  if(!csvBody) return;
+  if(!state.uploads.csv||state.uploadedFiles.length===0){
+    if(csvDetail) csvDetail.remove();
+    return;
+  }
+  if(!csvDetail){
+    csvDetail=document.createElement('div');
+    csvDetail.id='csv-upload-detail';
+    csvDetail.style.cssText='margin-top:8px;font-size:11px;color:#374151;line-height:1.7';
+    csvBody.appendChild(csvDetail);
+  }
+  // Per-day counts
+  const dayColors={1:'#2563eb',2:'#059669'};
+  let dayHtml='';
+  if(state.matchDays.length>1){
+    dayHtml=state.matchDays.map((_,i)=>{
+      const d=i+1;
+      const col=dayColors[d]||'#6366f1';
+      // All competitors registered for this day (anyone with d in allMatchDays)
+      const inDay=state.people.filter(p=>p.allMatchDays&&p.allMatchDays.includes(d));
+      const total=inDay.length;
+      const sameCount=inDay.filter(p=>p.allMatchDays.some(x=>x<d)).length;
+      const newCount=total-sameCount;
+      let detail='';
+      if(d>1&&sameCount>0){
+        detail=` <span style="font-size:10px;color:#64748b">(${sameCount} same · ${newCount} new)</span>`;
+      }
+      return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><span style="background:${col};color:#fff;border-radius:3px;padding:0 5px;font-size:10px;font-weight:700">D${d}</span><strong style="font-size:12px">${total} competitors</strong>${detail}</div>`;
+    }).join('');
+    const untagged=state.people.filter(p=>!p.matchDay&&!(p.allMatchDays&&p.allMatchDays.length)).length;
+    if(untagged) dayHtml+=`<div style="color:#9ca3af;font-size:10px">+ ${untagged} untagged</div>`;
+    dayHtml=`<div style="margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #f1f5f9">${dayHtml}</div>`;
+  } else if(state.people.length>0){
+    dayHtml=`<div style="margin-bottom:6px;font-size:12px"><strong>${state.people.length} competitors</strong></div>`;
+  }
+  // File list
+  const fileRows=state.uploadedFiles.map(f=>{
+    const col=dayColors[f.day]||'#6366f1';
+    const dayTag=f.day?`<span style="background:${col};color:#fff;border-radius:3px;padding:0 4px;font-size:10px;margin-right:4px;font-weight:700">D${f.day}</span>`:'';
+    const name=f.name.replace(/\.[^.]+$/,''); // strip extension for display
+    const chips=[];
+    if(f.same)    chips.push(`<span style="background:#e0f2fe;color:#0369a1;border-radius:3px;padding:0 5px;font-size:10px;font-weight:600">${f.same} same</span>`);
+    if(f.added)   chips.push(`<span style="background:#dcfce7;color:#166534;border-radius:3px;padding:0 5px;font-size:10px;font-weight:600">+${f.added} new</span>`);
+    if(f.updated) chips.push(`<span style="background:#f3f4f6;color:#6b7280;border-radius:3px;padding:0 5px;font-size:10px">${f.updated} updated</span>`);
+    if(f.removed) chips.push(`<span style="background:#fee2e2;color:#991b1b;border-radius:3px;padding:0 5px;font-size:10px;font-weight:600">−${f.removed} removed</span>`);
+    const detail=chips.length?chips.join(' '):`<span style="color:#9ca3af;font-size:10px">no changes</span>`;
+    return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">${dayTag}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6b7280;font-size:11px" title="${escapeAttr(f.name)}">${escapeHtml(name)}</span><span style="display:flex;gap:3px;flex-shrink:0">${detail}</span></div>`;
+  }).join('');
+  csvDetail.innerHTML=dayHtml+fileRows;
+}
+
+// ============================================================
+// PDF MATCH COPY IMPORT + VIEWER
+// ============================================================
+let _pdfDoc=null, _pdfPage=1;
+const _pdfThumbs={}; // pageNum → dataURL
+
+// Set PDF.js worker
+if(typeof pdfjsLib!=='undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+async function importMatchPDF(arrayBuffer){
+  if(typeof pdfjsLib==='undefined'){
+    toast('PDF viewer failed to load — check your internet connection, or use the Browse button to pick the file again in a moment.','error');
+    return;
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+  const pdfDoc=await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  _pdfDoc=pdfDoc;
+  _pdfPage=1;
+
+  // Render thumbnails for all pages (async, non-blocking)
+  renderPdfThumbnails(pdfDoc);
+
+  // Extract text from all pages
+  const pageTexts=[];
+  for(let p=1;p<=pdfDoc.numPages;p++){
+    const page=await pdfDoc.getPage(p);
+    const content=await page.getTextContent();
+    pageTexts.push(content.items.map(i=>i.str).join(' '));
+  }
+  const fullText=pageTexts.join('\n---PAGE---\n');
+
+  // ---- Parse stage data ----
+  // Individual stage pages: "Stage # N (Bay M)" or "Stage #N (BayM)"
+  const stageMap={}; // stageNum → {bayNum, cof, rounds, targets, poppers}
+
+  // Parse from summary table first (page 2 usually): "N Short/Medium/Long NN"
+  const summaryRe=/\b(\d+)\s+(Short|Medium|Long)\s+(\d+)\b/gi;
+  let sm;
+  while((sm=summaryRe.exec(pageTexts[1]||''))!==null){
+    const sn=parseInt(sm[1]);
+    if(sn>=1&&sn<=20){
+      stageMap[sn]=stageMap[sn]||{};
+      stageMap[sn].cof=sm[2];
+      stageMap[sn].rounds=parseInt(sm[3]);
+    }
+  }
+
+  // Parse individual stage pages
+  for(let p=0;p<pageTexts.length;p++){
+    const txt=pageTexts[p];
+    // Match "Stage # N (Bay M)" or "Stage #N (Bay M)" or "Stage N (Bay M)"
+    const hdr=txt.match(/Stage\s*#?\s*(\d+)\s*\(Bay\s*(\d+)\)/i);
+    if(!hdr) continue;
+    const sn=parseInt(hdr[1]), bn=parseInt(hdr[2]);
+    stageMap[sn]=stageMap[sn]||{};
+    stageMap[sn].stageNum=sn;
+    stageMap[sn].bayNum=bn;
+    stageMap[sn].pageIndex=p+1; // 1-based PDF page where this stage appears
+
+    // COF
+    const cofM=txt.match(/(Short|Medium|Long)\s+course\s+of\s+fire/i);
+    if(cofM) stageMap[sn].cof=cofM[1];
+
+    // Targets
+    const tgtM=txt.match(/TARGETS?:\s*(\d+)/i);
+    if(tgtM) stageMap[sn].targets=parseInt(tgtM[1]);
+
+    // Rounds
+    const rndM=txt.match(/ROUNDS?\s*[\/\s]\s*POINTS?:\s*(\d+)/i);
+    if(rndM) stageMap[sn].rounds=parseInt(rndM[1]);
+
+    // Poppers / activators (count all popper mentions)
+    const popM=txt.match(/POPPERS?:\s*(\d+)/i);
+    if(popM) stageMap[sn].poppers=parseInt(popM[1]);
+
+    // Swingers (count as props)
+    const swingCount=(txt.match(/swing/gi)||[]).length;
+    stageMap[sn].swingers=swingCount>0?1:0;
+  }
+
+  // Match title from page 1
+  const titleM=pageTexts[0].match(/IPSC\s+\w+.*?(?=\n|Date:|$)/i);
+  const matchTitle=titleM?titleM[0].trim():'IPSC Match';
+  const titleInput=document.getElementById('match-title-input');
+  if(titleInput) titleInput.value=matchTitle;
+
+  // Group stages by bay → build state.bays
+  const bayMap={}; // bayNum → [{stageNum, cof, rounds, targets, poppers}]
+  for(const [,st] of Object.entries(stageMap)){
+    if(!st.bayNum) continue;
+    bayMap[st.bayNum]=bayMap[st.bayNum]||[];
+    bayMap[st.bayNum].push(st);
+  }
+
+  const bayNums=Object.keys(bayMap).map(Number).sort((a,b)=>a-b);
+  if(bayNums.length===0){ toast('Could not detect stages from PDF','warn'); }
+
+  state.bays=bayNums.map(bn=>{
+    const stages=bayMap[bn];
+    // For multi-stage bays, aggregate
+    const totalRounds=stages.reduce((s,st)=>s+(st.rounds||0),0);
+    const totalTargets=stages.reduce((s,st)=>s+(st.targets||0),0);
+    const totalPoppers=stages.reduce((s,st)=>s+(st.poppers||0)+(st.swingers||0),0);
+    // COF: take the "heaviest" if mixed
+    const cofRank={Long:3,Medium:2,Short:1};
+    const cof=stages.reduce((best,st)=>(cofRank[st.cof]||0)>(cofRank[best]||0)?st.cof:best,'Short');
+    // Stage name: use stage numbers
+    const stageName=stages.length>1
+      ?`Stages ${stages.map(s=>s.stageNum).join(' & ')} (Bay ${bn})`
+      :`Stage ${stages[0].stageNum} (Bay ${bn})`;
+    return {
+      id:bn, name:stageName, length:cof,
+      rounds:totalRounds, targets:totalTargets,
+      props:totalPoppers, stages:stages.length,
+      _stageDetails: stages // keep for verify modal
+    };
+  });
+
+  state.uploads.xlsx=true;
+  updateUploadStatus();
+  generateBayInputs();
+
+  // Show PDF viewer
+  document.getElementById('pdf-viewer-wrap').style.display='block';
+  await pdfRenderPage(1);
+
+  toast(`✓ Match copy loaded — ${bayNums.length} bays, ${Object.keys(stageMap).length} stages detected`,'success',4000);
+}
+
+async function renderPdfThumbnails(pdfDoc){
+  for(let p=1;p<=pdfDoc.numPages;p++){
+    try{
+      const page=await pdfDoc.getPage(p);
+      const viewport=page.getViewport({scale:0.45});
+      const canvas=document.createElement('canvas');
+      canvas.width=viewport.width;
+      canvas.height=viewport.height;
+      await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+      _pdfThumbs[p]=canvas.toDataURL('image/jpeg',0.8);
+      // Update any already-rendered bay that uses this page
+      document.querySelectorAll(`.bay-stage-img[data-page="${p}"]`).forEach(img=>{
+        img.src=_pdfThumbs[p];
+        img.style.display='block';
+        img.previousSibling&&img.previousSibling.classList&&img.previousSibling.classList.contains('bay-no-img')&&(img.previousSibling.style.display='none');
+      });
+    } catch(e){ /* skip */ }
+  }
+}
+
+async function pdfRenderPage(pageNum){
+  if(!_pdfDoc) return;
+  pageNum=Math.max(1,Math.min(pageNum,_pdfDoc.numPages));
+  _pdfPage=pageNum;
+  document.getElementById('pdf-page-indicator').textContent=`Page ${pageNum} / ${_pdfDoc.numPages}`;
+  const page=await _pdfDoc.getPage(pageNum);
+  const viewport=page.getViewport({scale:1.4});
+  const canvas=document.getElementById('pdf-canvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=viewport.width;
+  canvas.height=viewport.height;
+  await page.render({canvasContext:ctx,viewport}).promise;
+}
+async function pdfGoPage(delta){
+  await pdfRenderPage(_pdfPage+delta);
+}
+function togglePdfViewer(){
+  const panel=document.getElementById('pdf-viewer-wrap');
+  panel.style.display='none';
+}
+
+// Also add a "View Match Copy" button in the main squadding screen header area (wired later)
+function openPdfViewerModal(){
+  if(!_pdfDoc){ toast('No match copy loaded','warn'); return; }
+  // Show inline lightbox — do NOT navigate away from main screen
+  const lb = document.getElementById('stage-lightbox');
+  if(lb){ lb.style.display='flex'; renderLightboxPage(_pdfPage); }
+}
+function renderLightboxPage(pageNum){
+  _pdfPage=pageNum;
+  const canvas=document.getElementById('lightbox-canvas');
+  if(!canvas||!_pdfDoc) return;
+  _pdfDoc.getPage(pageNum).then(page=>{
+    const vp=page.getViewport({scale:1.6});
+    canvas.width=vp.width; canvas.height=vp.height;
+    page.render({canvasContext:canvas.getContext('2d'),viewport:vp});
+    document.getElementById('lightbox-page-label').textContent=`Page ${pageNum} of ${_pdfDoc.numPages}`;
+  });
+}
+
+// Setup screen file inputs
+function handleMatchCopyFile(file){
+  if(!file) return;
+  const isPDF=file.name.toLowerCase().endsWith('.pdf');
+  const reader=new FileReader();
+  if(isPDF){ reader.onload=ev=>importMatchPDF(ev.target.result); reader.readAsArrayBuffer(file); }
+  else { reader.onload=ev=>importXLSX(ev.target.result); reader.readAsArrayBuffer(file); }
+}
+function handleRegistrationFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>importCSV(ev.target.result, file.name);
+  reader.readAsText(file);
+}
+function addDropZone(cardId, handler){
+  const card=document.getElementById(cardId);
+  if(!card) return;
+  let dc=0; // drag counter — handles child elements firing spurious dragleave events
+  card.addEventListener('dragenter',e=>{ e.preventDefault(); dc++; card.classList.add('drag-over'); });
+  card.addEventListener('dragover',e=>{ e.preventDefault(); });
+  card.addEventListener('dragleave',e=>{ dc--; if(dc<=0){ dc=0; card.classList.remove('drag-over'); } });
+  card.addEventListener('drop',e=>{
+    e.preventDefault(); dc=0; card.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0]; if(file) handler(file);
+  });
+}
+document.getElementById('setup-xlsx-input').addEventListener('change',e=>{
+  handleMatchCopyFile(e.target.files[0]); e.target.value='';
+});
+document.getElementById('setup-csv-input').addEventListener('change',e=>{
+  handleRegistrationFile(e.target.files[0]); e.target.value='';
+});
+addDropZone('upload-card-xlsx', handleMatchCopyFile);
+addDropZone('upload-card-csv-s2', handleRegistrationFile);
+
+// ============================================================
+// VERIFY MODAL
+// ============================================================
+function openVerifyModal(){
+  if(state.bays.length===0){ generateBayInputs(); }
+  const container=document.getElementById('verify-bay-rows');
+  container.innerHTML=`<div class="verify-bay-row header">
+    <div>Bay</div><div>Stage(s)</div><div>Stage Name</div><div>Length</div><div>Rounds</div><div>Targets</div><div>Props</div>
+  </div>`;
+  for(const bay of state.bays){
+    const stageDetails=bay._stageDetails||[{stageNum:'?',cof:bay.length,rounds:bay.rounds,targets:bay.targets,poppers:bay.props}];
+    const stageNums=stageDetails.map(s=>s.stageNum).join(' & ');
+    const isMulti=bay.stages>1;
+    const row=document.createElement('div');
+    row.className='verify-bay-row'+(isMulti?' verify-bay-group':'');
+    row.innerHTML=`
+      <div style="font-weight:700;color:#1a1a2e">
+        Bay ${bay.id}${isMulti?`<br><span style="font-size:10px;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:8px">${bay.stages} stages</span>`:''}
+      </div>
+      <div style="font-size:12px;color:#6b7280;font-weight:600">${stageNums}</div>
+      <input type="text" value="${escapeHtml(bay.name||'')}" placeholder="Stage name" onchange="updateVerifyBay(${bay.id},'name',this.value)">
+      <select onchange="updateVerifyBay(${bay.id},'length',this.value)">
+        <option${bay.length==='Short'?' selected':''}>Short</option>
+        <option${(!bay.length||bay.length==='Medium')?' selected':''}>Medium</option>
+        <option${bay.length==='Long'?' selected':''}>Long</option>
+      </select>
+      <input type="number" min="0" max="200" value="${bay.rounds||0}" placeholder="Rds" onchange="updateVerifyBay(${bay.id},'rounds',+this.value)">
+      <input type="number" min="0" max="60" value="${bay.targets||0}" placeholder="Tgts" onchange="updateVerifyBay(${bay.id},'targets',+this.value)">
+      <input type="number" min="0" max="30" value="${bay.props||0}" placeholder="Props" onchange="updateVerifyBay(${bay.id},'props',+this.value)">
+    `;
+    container.appendChild(row);
+  }
+  document.getElementById('verify-modal-overlay').style.display='flex';
+}
+function updateVerifyBay(id,field,val){
+  const bay=state.bays.find(b=>b.id===id);
+  if(bay) bay[field]=val;
+}
+function closeVerifyModal(){
+  document.getElementById('verify-modal-overlay').style.display='none';
+}
+function confirmVerify(){
+  closeVerifyModal();
+  generateBayInputs(); // refresh setup grid with verified values
+  showScreen('step2-screen');
+}
+
+// ============================================================
+// STAFFING RECOMMENDATION
+// ============================================================
+function staffingReq(bay){
+  const len=(bay.length||'').toLowerCase();
+  const rounds=parseInt(bay.rounds)||0;
+  const targets=parseInt(bay.targets)||0;
+  const props=parseInt(bay.props)||0;
+  const heavyProps=props>=4;
+  if(len==='long'||rounds>=24||targets>20||heavyProps) return {label:'CRO + 3 RO + heavy crew',level:'orange',min:3};
+  if(len==='medium'||(rounds>=12&&rounds<=23)||props>=2) return {label:'CRO + 2 RO',level:'yellow',min:2};
+  return {label:'CRO + 1 RO',level:'green',min:1};
+}
+
+// ============================================================
+// STAGE SETUP
+// ============================================================
+function createBaysFromInput(){
+  // Called only when MD manually clicks "Apply" — builds bays from the number input
+  const n=parseInt(document.getElementById('num-bays').value)||6;
+  const existing=state.bays.slice();
+  state.bays=[];
+  for(let i=1;i<=n;i++){
+    const prev=existing.find(b=>b.id===i)||{};
+    state.bays.push({id:i,name:prev.name||`Stage ${i}`,length:prev.length||'Medium',rounds:prev.rounds||0,targets:prev.targets||0,stages:prev.stages||1,props:prev.props||0,_stageDetails:prev._stageDetails||null});
+  }
+  generateBayInputs();
+}
+function generateBayInputs(){
+  const grid=document.getElementById('bays-grid');
+  grid.innerHTML='';
+  if(state.bays.length===0){
+    grid.innerHTML='<p style="color:#9ca3af;font-size:13px;padding:12px 0">Upload a match copy or click <strong>Apply</strong> to set up bays manually.</p>';
+    return;
+  }
+  // Sync num-bays input to match loaded bays
+  document.getElementById('num-bays').value=state.bays.length;
+  for(const bay of state.bays){
+    const card=document.createElement('div');
+    card.className='bay-setup-card';
+    card.innerHTML=`
+<div class="bay-setup-card-header">
+  <h3>Bay ${bay.id}</h3>
+  ${bay.stages>1?`<span class="bay6-badge">${bay.stages} stages</span>`:''}
+</div>
+<div class="bay-field-grid">
+  <div class="form-row span-full">
+    <label>Stage Name</label>
+    <input type="text" data-bay="${bay.id}" data-field="name" value="${bay.name}" placeholder="e.g. Speed Steel">
+  </div>
+  <div class="form-row">
+    <label>COF Length</label>
+    <select data-bay="${bay.id}" data-field="length">
+      <option${bay.length==='Short'?' selected':''}>Short</option>
+      <option${bay.length==='Medium'?' selected':''}>Medium</option>
+      <option${bay.length==='Long'?' selected':''}>Long</option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Round Count</label>
+    <input type="number" min="0" max="200" data-bay="${bay.id}" data-field="rounds" value="${bay.rounds||0}">
+  </div>
+  <div class="form-row">
+    <label>Targets</label>
+    <input type="number" min="0" max="60" data-bay="${bay.id}" data-field="targets" value="${bay.targets||0}">
+  </div>
+  <div class="form-row">
+    <label>Poppers / Activators</label>
+    <input type="number" min="0" max="30" data-bay="${bay.id}" data-field="props" value="${bay.props||0}">
+  </div>
+  <div class="form-row">
+    <label>Stages in Bay</label>
+    <input type="number" min="1" max="5" data-bay="${bay.id}" data-field="stages" value="${bay.stages||1}">
+  </div>
+</div>`;
+    grid.appendChild(card);
+  }
+  // Listen for changes
+  grid.querySelectorAll('input,select').forEach(el=>{
+    el.addEventListener('change',()=>updateBayField(el));
+    el.addEventListener('input',()=>updateBayField(el));
+  });
+}
+function updateBayField(el){
+  const id=parseInt(el.dataset.bay);
+  const field=el.dataset.field;
+  const bay=state.bays.find(b=>b.id===id);
+  if(!bay) return;
+  bay[field]=['rounds','targets','stages','props'].includes(field)?parseInt(el.value)||0:el.value;
+  if(field==='stages'){
+    const card=el.closest('.bay-setup-card');
+    if(card){
+      const header=card.querySelector('.bay-setup-card-header');
+      let badge=header?header.querySelector('.bay6-badge'):null;
+      if(bay.stages>1){
+        if(!badge&&header){badge=document.createElement('span');badge.className='bay6-badge';header.appendChild(badge);}
+        if(badge) badge.textContent=`${bay.stages} stages`;
+      } else if(badge){ badge.remove(); }
+    }
+  }
+}
+document.getElementById('btn-gen-bays').addEventListener('click',createBaysFromInput);
+function showScreen(id){
+  ['setup-screen','step2-screen','main-screen'].forEach(s=>{
+    document.getElementById(s).classList.toggle('active', s===id);
+  });
+}
+document.getElementById('btn-continue').addEventListener('click',()=>{
+  if(state.bays.length===0) generateBayInputs();
+  openVerifyModal();
+});
+document.getElementById('btn-back-to-step1').addEventListener('click',()=>{
+  showScreen('setup-screen');
+  generateBayInputs();
+});
+document.getElementById('btn-continue-to-squading').addEventListener('click',()=>{
+  showMainScreen();
+});
+document.getElementById('btn-go-setup').addEventListener('click',()=>{
+  showScreen('step2-screen');
+  document.getElementById('btn-go-setup').style.display='none';
+});
+
+// ============================================================
+// SHOW MAIN SCREEN
+// ============================================================
+function applyDayTint(){
+  const ms = document.getElementById('main-screen');
+  if(!ms) return;
+  ms.classList.remove('day-1','day-2');
+  if(state.matchDays.length >= 2) ms.classList.add(`day-${state.activeDay}`);
+}
+function renderDayTabs(){
+  const bar = document.getElementById('day-tabs-bar');
+  if(!bar) return;
+  if(state.matchDays.length < 2){ bar.style.display='none'; applyDayTint(); return; }
+  bar.style.display='flex';
+  bar.innerHTML='';
+  state.matchDays.forEach((_dateStr, i)=>{
+    const day = i+1;
+    const count = state.people.filter(p=>p.allMatchDays&&p.allMatchDays.includes(day)).length;
+    const btn = document.createElement('button');
+    btn.className = 'day-tab' + (state.activeDay===day?' active':'');
+    btn.textContent = `Day ${day}  (${count})`;
+    btn.dataset.day = day;
+    btn.addEventListener('click', ()=>switchDay(day));
+    bar.appendChild(btn);
+  });
+  applyDayTint();
+}
+function switchDay(day){
+  if(day===state.activeDay) return;
+  // Ensure the dicts exist
+  if(!state.dayAssignments[day]) state.dayAssignments[day]={};
+  if(!state.dayAdminAssignments[day]) state.dayAdminAssignments[day]={};
+  state.activeDay = day;
+  state.assignments = state.dayAssignments[day];
+  state.adminAssignments = state.dayAdminAssignments[day];
+  state.activeSlot = null;
+  state.selectedPersonId = null;
+  // Sync people-list day filter to match active day
+  dayFilter = day;
+  applyDayTint();
+  renderDayTabs();
+  renderBayGrid();
+  renderPeopleList();
+  updateCounters();
+  // Sync the day filter buttons in the bottom panel too
+  document.querySelectorAll('#day-filters .filter-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.day===String(day));
+  });
+}
+function showMainScreen(){
+  if(state.bays.length===0) createBaysFromInput();
+  showScreen('main-screen');
+  document.getElementById('group-counter').style.display='flex';
+  document.getElementById('btn-save').style.display='';
+  document.getElementById('btn-load').style.display='';
+  document.getElementById('btn-export-csv').style.display='';
+  document.getElementById('btn-export-summary').style.display='';
+  document.getElementById('btn-go-setup').style.display='';
+  renderDayTabs();
+  renderBayGrid();
+  renderPeopleList();
+  updateCounters();
+}
+
+// ============================================================
+// BAY GRID RENDER
+// ============================================================
+function renderBayGrid(){
+  const adminSec=document.getElementById('admin-section');
+  if(adminSec) adminSec.style.display=state.bays.length>0?'':'none';
+  renderAdminCards();
+  const grid=document.getElementById('bay-grid');
+  grid.style.gridTemplateColumns=`repeat(${state.bays.length},minmax(220px,1fr))`;
+  grid.innerHTML='';
+  for(const bay of state.bays){
+    grid.appendChild(buildBayCol(bay));
+  }
+}
+
+// ============================================================
+// ADMIN CARDS RENDER
+// ============================================================
+function renderAdminCards(){
+  const row=document.getElementById('admin-cards-row');
+  if(row){ row.innerHTML=''; for(const grp of ['A','B']) row.appendChild(buildAdminCard(grp)); }
+}
+function buildAdminCard(group){
+  const card=document.createElement('div');
+  card.className='admin-card';
+  card.id=`admin-card-${group}`;
+  const grpClass=group==='A'?'grp-a':'grp-b';
+  let slotsHTML='';
+  for(const slot of ADMIN_SLOTS){
+    const k=adminSlotKey(group,slot.key);
+    const pid=state.adminAssignments[k];
+    const isActive=state.activeSlot&&state.activeSlot.admin&&state.activeSlot.group===group&&state.activeSlot.sk===slot.key;
+    if(pid){
+      const person=getPersonById(pid);
+      if(person){
+        slotsHTML+=`<div class="admin-slot filled" draggable="true" id="admin-slot-${group}-${slot.key}"
+          data-admin-group="${group}" data-admin-slot="${slot.key}" data-person="${pid}"
+          onclick="onAdminSlotClick('${group}','${slot.key}')"
+          ondragstart="onAdminSlotDragStart(event)" ondragover="onAdminSlotDragOver(event)" ondrop="onAdminSlotDrop(event)" ondragleave="onAdminSlotDragLeave(event)">
+          <span class="admin-slot-label">${slot.label}</span>
+          <span class="chip ${chipClass(person.role)}" style="font-size:11px;flex:1">${escapeHtml(person.firstName+' '+person.lastName)}
+            <span onclick="event.stopPropagation();unassignAdminSlot('${group}','${slot.key}')" style="margin-left:4px;cursor:pointer;opacity:.6;font-size:10px">✕</span>
+          </span></div>`;
+      }
+    } else {
+      slotsHTML+=`<div class="admin-slot${isActive?' active-target':''}" id="admin-slot-${group}-${slot.key}" title="${slot.title}"
+        data-admin-group="${group}" data-admin-slot="${slot.key}"
+        onclick="onAdminSlotClick('${group}','${slot.key}')"
+        ondragover="onAdminSlotDragOver(event)" ondrop="onAdminSlotDrop(event)" ondragleave="onAdminSlotDragLeave(event)">
+        <span class="admin-slot-label">${slot.label}</span>
+        <span style="font-size:11px;color:#a78bfa;flex:1">— ${slot.title}</span>
+      </div>`;
+    }
+  }
+  const adminGrpLabel=group==='A'?'Morning':'Afternoon';
+  card.innerHTML=`<div class="admin-card-title">Match Administration <span class="admin-grp-badge ${grpClass}">${adminGrpLabel}</span></div>
+  <div class="admin-slots-grid">${slotsHTML}</div>`;
+  return card;
+}
+function onAdminSlotClick(group,sk){
+  const isAlreadyActive=state.activeSlot&&state.activeSlot.admin&&state.activeSlot.group===group&&state.activeSlot.sk===sk;
+  if(state.activeSlot){
+    const prev=state.activeSlot;
+    state.activeSlot=null;
+    if(prev.admin) renderAdminCards();
+    else refreshGroupSection(prev.bayId,prev.group);
+  }
+  if(isAlreadyActive) return;
+  const k=adminSlotKey(group,sk);
+  if(state.adminAssignments[k]){ unassignAdminSlot(group,sk); return; }
+  state.activeSlot={admin:true,group,sk};
+  renderAdminCards();
+  if(state.selectedPersonId) attemptAdminAssign(state.selectedPersonId,group,sk);
+}
+function attemptAdminAssign(pid,group,sk){
+  const k=adminSlotKey(group,sk);
+  if(state.adminAssignments[k]){toast('Slot already filled','warn');return;}
+  const prevAdminKey=adminPersonAssignment(pid);
+  if(prevAdminKey) delete state.adminAssignments[prevAdminKey];
+  state.adminAssignments[k]=pid;
+  const p=getPersonById(pid);
+  if(p&&!p.group) p.group=group;
+  state.activeSlot=null;
+  state.selectedPersonId=null;
+  renderAdminCards();
+  renderPeopleList();
+  updateCounters();
+  updateRightPanel();
+  if(p) toast(`${p.firstName} ${p.lastName} → Admin Group ${group} — ${sk}`,'success',2000);
+}
+function unassignAdminSlot(group,sk){
+  const k=adminSlotKey(group,sk);
+  const pid=state.adminAssignments[k];
+  if(!pid) return;
+  const p=getPersonById(pid);
+  delete state.adminAssignments[k];
+  if(p&&!personAssignment(pid)&&!adminPersonAssignment(pid)) p.group=null;
+  renderAdminCards();
+  renderPeopleList();
+  updateCounters();
+  updateRightPanel();
+  if(p) toast(`${p.firstName} ${p.lastName} removed from Admin`,'info',2000);
+}
+function onAdminSlotDragStart(e){
+  const el=e.currentTarget;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain', JSON.stringify({type:'adminSlot',pid:el.dataset.person,group:el.dataset.adminGroup,sk:el.dataset.adminSlot}));
+}
+function onAdminSlotDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onAdminSlotDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+function onAdminSlotDrop(e){
+  e.preventDefault();
+  const el=e.currentTarget;
+  el.classList.remove('drag-over');
+  let data;
+  try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+  const pid=data.pid;
+  if(!pid) return;
+  const targetGroup=el.dataset.adminGroup;
+  const targetSk=el.dataset.adminSlot;
+  const targetKey=adminSlotKey(targetGroup,targetSk);
+  const existingPid=el.dataset.person;
+
+  if(data.type==='adminSlot'){
+    const sourceKey=adminSlotKey(data.group,data.sk);
+    if(sourceKey===targetKey) return;
+    delete state.adminAssignments[sourceKey];
+    if(existingPid) state.adminAssignments[sourceKey]=existingPid;
+  } else if(data.type==='slot'){
+    // Moving from a bay slot to admin — clear bay slot
+    const sourceKey=slotKey(data.bayId,data.group,data.sk);
+    delete state.assignments[sourceKey];
+    if(existingPid) state.assignments[sourceKey]=existingPid;
+    const src=parseSlotKey(sourceKey);
+    refreshGroupSection(src.bayId,src.group);
+  } else {
+    // From person list
+    const prevAdminKey=adminPersonAssignment(pid);
+    if(prevAdminKey){
+      delete state.adminAssignments[prevAdminKey];
+      if(existingPid) state.adminAssignments[prevAdminKey]=existingPid;
+    } else {
+      const prevKey=personAssignment(pid);
+      if(prevKey){
+        delete state.assignments[prevKey];
+        if(existingPid) state.assignments[prevKey]=existingPid;
+        const src=parseSlotKey(prevKey);
+        refreshGroupSection(src.bayId,src.group);
+      } else if(existingPid){
+        delete state.adminAssignments[targetKey];
+      }
+    }
+  }
+
+  state.adminAssignments[targetKey]=pid;
+  const p=getPersonById(pid);
+  if(p&&!p.group) p.group=targetGroup;
+  state.activeSlot=null;
+  state.selectedPersonId=null;
+  renderAdminCards();
+  renderPeopleList();
+  updateCounters();
+  updateRightPanel();
+}
+function buildBayCol(bay){
+  const req=staffingReq(bay);
+  const col=document.createElement('div');
+  col.className='bay-col';
+  col.id=`bay-col-${bay.id}`;
+  let headerHTML=`<div class="bay-header">
+    <div class="bay-num">Bay ${bay.id}${bay.stages>1?` <span style="font-size:11px;background:rgba(124,58,237,.6);padding:1px 6px;border-radius:8px">${bay.stages} stages</span>`:''}</div>
+    <div class="bay-stage-name">${bay.name||'No stage name'}</div>
+    <div class="bay-badges"><span class="staffing-badge ${req.level==='green'?'green':req.level==='yellow'?'yellow':'red'}">${req.label}</span></div>
+  </div>`;
+  col.innerHTML=headerHTML;
+  // Stage image from PDF
+  // Use the actual PDF page where the stage description appears, not the stage number
+  const pageNum=bay._stageDetails&&bay._stageDetails[0]
+    ?(bay._stageDetails[0].pageIndex||bay._stageDetails[0].stageNum)
+    :bay.id;
+  const thumb=_pdfThumbs[pageNum];
+  const imgWrap=document.createElement('div');
+  imgWrap.className='bay-stage-img-wrap';
+  if(thumb){
+    const img=document.createElement('img');
+    img.className='bay-stage-img';
+    img.src=thumb;
+    img.dataset.page=pageNum;
+    img.title='Click to view full stage layout';
+    img.addEventListener('click',()=>{ _pdfPage=pageNum; openPdfViewerModal(); });
+    imgWrap.appendChild(img);
+    col.appendChild(imgWrap);
+  } else if(_pdfDoc){
+    // PDF loaded but thumbnail not ready yet — placeholder that updates when ready
+    const ph=document.createElement('div');
+    ph.className='bay-no-img';
+    ph.textContent='Loading stage…';
+    imgWrap.appendChild(ph);
+    const img=document.createElement('img');
+    img.className='bay-stage-img';
+    img.dataset.page=pageNum;
+    img.style.display='none';
+    img.title='Click to view full stage layout';
+    img.addEventListener('click',()=>{ _pdfPage=pageNum; openPdfViewerModal(); });
+    imgWrap.appendChild(img);
+    col.appendChild(imgWrap);
+  }
+  for(const grp of GROUPS){
+    col.appendChild(buildGroupSection(bay,grp));
+  }
+  return col;
+}
+function buildGroupSection(bay,group){
+  const sec=document.createElement('div');
+  sec.className='group-section';
+  sec.id=`grp-${bay.id}-${group}`;
+  const shooterCount=SHOOT_SLOTS.filter(s=>state.assignments[slotKey(bay.id,group,s.key)]).length;
+  const grpLabel=group==='A'?'Morning':'Afternoon';
+  sec.innerHTML=`<div class="group-label">${grpLabel} <span class="shooter-count">${shooterCount}/11</span></div>
+  <div class="work-section">
+    <div class="section-label">Work</div>
+    ${WORK_SLOTS.map(ws=>buildSlotHTML(bay.id,group,ws)).join('')}
+  </div>
+  <div class="shoot-section">
+    <div class="section-label">Shoot</div>
+    ${SHOOT_SLOTS.map(ss=>buildSlotHTML(bay.id,group,ss)).join('')}
+  </div>`;
+  // Attach slot click handlers
+  sec.querySelectorAll('.slot').forEach(el=>{
+    el.addEventListener('click',e=>{
+      const bayId=parseInt(el.dataset.bay);
+      const grp=el.dataset.group;
+      const sk=el.dataset.slot;
+      const pid=el.dataset.person;
+      if(pid){
+        // Clicking filled slot — show person detail
+        const p=getPersonById(pid);
+        if(p) selectPerson(pid);
+      } else {
+        // Clicking empty slot
+        onSlotClick(bayId,grp,sk);
+      }
+    });
+  });
+  // Chip remove buttons
+  sec.querySelectorAll('.chip-remove').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const k=el.dataset.key;
+      unassignSlot(k);
+    });
+  });
+  return sec;
+}
+function buildSlotHTML(bayId,group,slotDef){
+  const k=slotKey(bayId,group,slotDef.key);
+  const pid=state.assignments[k];
+  const isActive=state.activeSlot&&state.activeSlot.bayId===bayId&&state.activeSlot.group===group&&state.activeSlot.sk===slotDef.key;
+  if(pid){
+    const person=getPersonById(pid);
+    if(!person) return '';
+    const conflict=hasConflict(pid);
+    const reqOk=person.requests.length>0&&person.requests.some(r=>isRequestSatisfied(pid,r));
+    const chipCls=slotDef.type==='shooter'?'chip-shooter':chipClass(person.role);
+    return `<div class="slot filled" draggable="true" data-bay="${bayId}" data-group="${group}" data-slot="${slotDef.key}" data-person="${pid}"
+      ondragstart="onSlotDragStart(event)" ondragover="onSlotDragOver(event)" ondrop="onSlotDrop(event)" ondragleave="onSlotDragLeave(event)">
+      <span class="chip ${chipCls}${conflict?' conflict':''}${reqOk?' request-ok':''}">
+        <span class="chip-name" title="${person.firstName} ${person.lastName} (${person.role})">${person.firstName} ${person.lastName}</span>
+        <span class="chip-remove" data-key="${k}">&times;</span>
+      </span>
+    </div>`;
+  } else {
+    return `<div class="slot${isActive?' active-target':''}" data-bay="${bayId}" data-group="${group}" data-slot="${slotDef.key}"
+      ondragover="onSlotDragOver(event)" ondrop="onSlotDrop(event)" ondragleave="onSlotDragLeave(event)">
+      <span class="slot-label">${slotDef.label}</span>
+    </div>`;
+  }
+}
+function refreshBayCol(bayId){
+  const bay=state.bays.find(b=>b.id===bayId);
+  if(!bay) return;
+  const col=document.getElementById(`bay-col-${bayId}`);
+  if(!col) return;
+  const newCol=buildBayCol(bay);
+  col.replaceWith(newCol);
+}
+function refreshGroupSection(bayId,group){
+  const bay=state.bays.find(b=>b.id===bayId);
+  if(!bay) return;
+  const existing=document.getElementById(`grp-${bayId}-${group}`);
+  if(!existing) return;
+  const newSec=buildGroupSection(bay,group);
+  existing.replaceWith(newSec);
+}
+
+// ============================================================
+// SLOT INTERACTION
+// ============================================================
+function onSlotClick(bayId,group,sk){
+  if(state.activeSlot&&state.activeSlot.bayId===bayId&&state.activeSlot.group===group&&state.activeSlot.sk===sk){
+    // Deactivate
+    state.activeSlot=null;
+    refreshGroupSection(bayId,group);
+    return;
+  }
+  // Deactivate previous
+  if(state.activeSlot){
+    const prev=state.activeSlot;
+    state.activeSlot=null;
+    if(prev.admin) renderAdminCards();
+    else refreshGroupSection(prev.bayId,prev.group);
+  }
+  state.activeSlot={bayId,group,sk};
+  refreshGroupSection(bayId,group);
+  // If someone is selected, try to assign them
+  if(state.selectedPersonId){
+    attemptAssign(state.selectedPersonId,bayId,group,sk);
+  }
+}
+function attemptAssign(pid,bayId,group,sk){
+  const k=slotKey(bayId,group,sk);
+  if(state.assignments[k]){toast('Slot already filled','warn');return;}
+  // Check if person already assigned somewhere
+  const prevKey=personAssignment(pid);
+  if(prevKey){
+    // Unassign from previous
+    delete state.assignments[prevKey];
+    const prev=parseSlotKey(prevKey);
+    refreshGroupSection(prev.bayId,prev.group);
+  }
+  state.assignments[k]=pid;
+  // Set group on person
+  const p=getPersonById(pid);
+  if(p&&!p.group) p.group=group;
+  // Check conflicts
+  if(hasConflict(pid)){
+    toast(`Warning: ${p.firstName} ${p.lastName} has a conflict in this bay!`,'warn',4000);
+  }
+  state.activeSlot=null;
+  state.selectedPersonId=null;
+  refreshGroupSection(bayId,group);
+  // Refresh other groups in bay if they also contain conflicting parties
+  const otherGroup=group==='A'?'B':'A';
+  refreshGroupSection(bayId,otherGroup);
+  renderPeopleList();
+  updateCounters();
+  updateRightPanel();
+}
+function unassignSlot(k){
+  const pid=state.assignments[k];
+  if(!pid) return;
+  const p=getPersonById(pid);
+  delete state.assignments[k];
+  // Clear person's group if they have no remaining assignments
+  if(p&&!personAssignment(pid)){
+    p.group=null;
+  }
+  const {bayId,group}=parseSlotKey(k);
+  refreshGroupSection(bayId,group);
+  renderPeopleList();
+  updateCounters();
+  toast(`${p?p.firstName+' '+p.lastName:'Person'} unassigned`,'info',2000);
+  updateRightPanel();
+}
+
+// ============================================================
+// DRAG AND DROP — SLOT HANDLERS
+// ============================================================
+function onSlotDragStart(e){
+  // Dragging a filled slot — carry both the source slot key and the person id
+  const el=e.currentTarget;
+  const pid=el.dataset.person;
+  const bayId=parseInt(el.dataset.bay);
+  const group=el.dataset.group;
+  const sk=el.dataset.slot;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain', JSON.stringify({type:'slot',pid,bayId,group,sk}));
+}
+function onSlotDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onSlotDragLeave(e){
+  e.currentTarget.classList.remove('drag-over');
+}
+function onSlotDrop(e){
+  e.preventDefault();
+  const el=e.currentTarget;
+  el.classList.remove('drag-over');
+  let data;
+  try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+  const pid=data.pid;
+  if(!pid) return;
+  const targetBayId=parseInt(el.dataset.bay);
+  const targetGroup=el.dataset.group;
+  const targetSk=el.dataset.slot;
+  const targetKey=slotKey(targetBayId,targetGroup,targetSk);
+  const existingPid=el.dataset.person; // person already in this slot (may be undefined)
+
+  // If source was a slot, clear it first
+  if(data.type==='slot'){
+    const sourceKey=slotKey(data.bayId,data.group,data.sk);
+    if(sourceKey===targetKey) return; // dropped on itself
+    delete state.assignments[sourceKey];
+    const src=parseSlotKey(sourceKey);
+    // If swapping: put existing person into source slot
+    if(existingPid){
+      state.assignments[sourceKey]=existingPid;
+    }
+    refreshGroupSection(src.bayId,src.group);
+  } else {
+    // Dragging from person list — if person already assigned, clear old slot
+    const prevKey=personAssignment(pid);
+    if(prevKey){
+      const prev=parseSlotKey(prevKey);
+      delete state.assignments[prevKey];
+      if(existingPid){ state.assignments[prevKey]=existingPid; }
+      refreshGroupSection(prev.bayId,prev.group);
+    } else if(existingPid){
+      // Target is filled, just unassign existing (no source slot to swap into)
+      delete state.assignments[targetKey];
+    }
+  }
+
+  // Place dragged person in target
+  state.assignments[targetKey]=pid;
+  const p=getPersonById(pid);
+  if(p&&!p.group) p.group=targetGroup;
+  if(hasConflict(pid)&&p) toast(`Warning: ${p.firstName} ${p.lastName} has a conflict!`,'warn',4000);
+  state.activeSlot=null;
+  refreshGroupSection(targetBayId,targetGroup);
+  const otherGroup=targetGroup==='A'?'B':'A';
+  refreshGroupSection(targetBayId,otherGroup);
+  renderPeopleList();
+  updateCounters();
+  updateRightPanel();
+}
+
+// ============================================================
+// PEOPLE LIST
+// ============================================================
+let roleFilter='all', grpFilter='all', dayFilter='all', searchQuery='';
+function renderDayFilterButtons(){
+  const container=document.getElementById('day-filters');
+  if(!container) return;
+  const days=state.matchDays;
+  if(days.length<2){ container.style.display='none'; return; }
+  container.style.display='flex';
+  // Rebuild buttons only when day count changed
+  const existing=container.querySelectorAll('.filter-btn');
+  if(existing.length===days.length+1) {
+    // Just update active state
+    existing.forEach(b=>{
+      b.classList.toggle('active', b.dataset.day===String(dayFilter));
+    });
+    return;
+  }
+  container.innerHTML='';
+  const allBtn=document.createElement('button');
+  allBtn.className='filter-btn'+(dayFilter==='all'?' active':'');
+  allBtn.dataset.day='all'; allBtn.textContent='All Days';
+  container.appendChild(allBtn);
+  days.forEach((_,i)=>{
+    const d=i+1;
+    const btn=document.createElement('button');
+    btn.className='filter-btn'+(dayFilter===d?' active':'');
+    btn.dataset.day=String(d); btn.textContent=`Day ${d}`;
+    container.appendChild(btn);
+  });
+}
+function renderPeopleList(){
+  const hasPeople=state.people.length>0;
+  const bp=document.getElementById('bottom-panel');
+  const act=document.getElementById('left-panel-actions');
+  if(bp) bp.style.display=hasPeople?'flex':'none';
+  if(act) act.style.display=hasPeople?'flex':'none';
+  renderDayFilterButtons();
+  renderDayTabs();
+  const list=document.getElementById('people-list');
+  list.innerHTML='';
+  let people=[...state.people];
+  // Sort: unassigned first, then alphabetical
+  people.sort((a,b)=>{
+    const aa=!!personAssignment(a.id),bb=!!personAssignment(b.id);
+    if(aa!==bb) return aa?1:-1;
+    return (a.lastName+a.firstName).localeCompare(b.lastName+b.firstName);
+  });
+  const sq=searchQuery.toLowerCase();
+  people=people.filter(p=>{
+    if(sq&&!(p.firstName+' '+p.lastName).toLowerCase().includes(sq)) return false;
+    if(!roleFilterMatch(p,roleFilter)) return false;
+    if(!grpFilterMatch(p,grpFilter)) return false;
+    // Day filter: only apply if user explicitly picked a day (not 'all')
+    if(dayFilter!=='all'){
+      const targetDay=parseInt(dayFilter);
+      const days=p.allMatchDays&&p.allMatchDays.length>0?p.allMatchDays:(p.matchDay?[p.matchDay]:[]);
+      if(!days.includes(targetDay)) return false;
+    }
+    return true;
+  });
+  if(people.length===0){
+    const msg=state.people.length===0
+      ?'<div style="padding:20px 16px;text-align:center;color:#6b7280;font-size:13px;line-height:1.6"><div style="font-size:28px;margin-bottom:8px">&#128101;</div><strong>No competitors loaded yet.</strong><br><span style="font-size:12px">Upload the Registration List in <strong>Step 2</strong> to get started.</span></div>'
+      :'<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px">No people match this filter</div>';
+    list.innerHTML=msg;
+    return;
+  }
+  for(const p of people){
+    list.appendChild(buildPersonCard(p));
+  }
+}
+function buildPersonCard(p){
+  const ak=personAssignment(p.id);
+  const adminK=adminPersonAssignment(p.id);
+  const isAssigned=!!(ak||adminK);
+  const isSelected=state.selectedPersonId===p.id;
+  const div=document.createElement('div');
+  div.className=`person-card${isAssigned?' assigned':''}${isSelected?' selected':''}${p._dropped?' dropped':''}`;
+  div.draggable=true;
+  div.dataset.pid=p.id;
+  let bayLabel='';
+  if(ak){
+    const {bayId,group,sk}=parseSlotKey(ak);
+    bayLabel=`B${bayId} Grp${group}`;
+  } else if(adminK){
+    const {group,sk}=parseAdminSlotKey(adminK);
+    bayLabel=`Admin G${group}`;
+  }
+  const multiDay=state.matchDays.length>1;
+  let dayBadge='';
+  if(multiDay){
+    const days=p.allMatchDays&&p.allMatchDays.length>0?p.allMatchDays:(p.matchDay?[p.matchDay]:[]);
+    if(days.length>0) dayBadge=`<div class="day-badge">${days.map(d=>`<span class="day-badge-d${d}">D${d}</span>`).join('')}</div>`;
+  }
+  div.innerHTML=`<div class="role-dot ${roleDotClass(p.role)}"></div>
+  <div style="flex:1;min-width:0">
+    <div class="person-name">${p.firstName} ${p.lastName}</div>
+    <div class="person-sub">${p.role} &bull; ${p.division||'—'}</div>
+  </div>
+  ${dayBadge}
+  ${bayLabel?`<div class="assign-badge" style="${adminK?'color:#7c3aed':''}">${bayLabel}</div>`:''}`;
+  div.addEventListener('click',()=>onPersonClick(p.id, div));
+  div.addEventListener('dragstart',e=>{
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({type:'person',pid:p.id}));
+    setTimeout(()=>div.classList.add('dragging'),0);
+  });
+  div.addEventListener('dragend',()=>div.classList.remove('dragging'));
+  return div;
+}
+function onPersonClick(pid, anchorEl){
+  if(state.selectedPersonId===pid){
+    state.selectedPersonId=null;
+    renderPeopleList();
+    showRightEmpty();
+    return;
+  }
+  state.selectedPersonId=pid;
+  renderPeopleList();
+  showRightDetail(pid, anchorEl);
+  // If active slot, try assign
+  if(state.activeSlot){
+    if(state.activeSlot.admin){
+      attemptAdminAssign(pid,state.activeSlot.group,state.activeSlot.sk);
+    } else {
+      const {bayId,group,sk}=state.activeSlot;
+      attemptAssign(pid,bayId,group,sk);
+    }
+  }
+}
+function selectPerson(pid){
+  state.selectedPersonId=pid;
+  renderPeopleList();
+  showRightDetail(pid);
+}
+
+// Role filter buttons
+document.getElementById('role-filters').addEventListener('click',e=>{
+  const btn=e.target.closest('.filter-btn');if(!btn) return;
+  document.querySelectorAll('#role-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  roleFilter=btn.dataset.role;
+  renderPeopleList();
+});
+document.getElementById('group-filters').addEventListener('click',e=>{
+  const btn=e.target.closest('.filter-btn');if(!btn) return;
+  document.querySelectorAll('#group-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  grpFilter=btn.dataset.grp;
+  renderPeopleList();
+});
+document.getElementById('day-filters').addEventListener('click',e=>{
+  const btn=e.target.closest('.filter-btn');if(!btn) return;
+  document.querySelectorAll('#day-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  dayFilter=btn.dataset.day==='all'?'all':parseInt(btn.dataset.day);
+  renderPeopleList();
+});
+document.getElementById('search-box').addEventListener('input',e=>{
+  searchQuery=e.target.value;
+  renderPeopleList();
+});
+// People list — drag-to-unassign drop zone
+(function(){
+  const pl=document.getElementById('people-list');
+  pl.addEventListener('dragover',e=>{
+    const raw=e.dataTransfer.types.includes('text/plain');
+    if(!raw) return;
+    e.preventDefault();
+    pl.classList.add('drag-over-unassign');
+  });
+  pl.addEventListener('dragleave',e=>{
+    if(!pl.contains(e.relatedTarget)) pl.classList.remove('drag-over-unassign');
+  });
+  pl.addEventListener('drop',e=>{
+    pl.classList.remove('drag-over-unassign');
+    // Only handle drops from slots (not person cards re-dropping on list)
+    let data;
+    try{ data=JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+    e.preventDefault();
+    if(data.type==='slot'){
+      unassignSlot(slotKey(data.bayId,data.group,data.sk));
+    } else if(data.type==='adminSlot'){
+      unassignAdminSlot(data.group,data.sk);
+    }
+  });
+})();
+
+// ============================================================
+// RIGHT PANEL
+// ============================================================
+function showRightEmpty(){ closeShooterPopup(); }
+function closeShooterPopup(){
+  document.getElementById('shooter-popup').style.display='none';
+  document.getElementById('shooter-popup-body').innerHTML='';
+}
+function buildShooterPopupHTML(pid){
+  const p=getPersonById(pid); if(!p) return '';
+  const ak=personAssignment(pid);
+  const adminK=adminPersonAssignment(pid);
+  let assignStr='<em>Unassigned</em>';
+  if(ak){
+    const {bayId,group,sk}=parseSlotKey(ak);
+    const slotDef=[...WORK_SLOTS,...SHOOT_SLOTS].find(s=>s.key===sk);
+    const grpLabel=group==='A'?'Morning':'Afternoon';
+    assignStr=`Bay ${bayId}, ${grpLabel} — ${slotDef?slotDef.label:sk}`;
+  } else if(adminK){
+    const {group,sk}=parseAdminSlotKey(adminK);
+    const slotDef=ADMIN_SLOTS.find(s=>s.key===sk);
+    assignStr=`<span style="color:#7c3aed;font-weight:600">Admin — ${group==='A'?'Morning':'Afternoon'} — ${slotDef?slotDef.title:sk}</span>`;
+  }
+  let reqHTML='<div style="color:#9ca3af;font-size:12px">No requests</div>';
+  if(p.requests.length>0){
+    reqHTML=p.requests.map(r=>{
+      const sat=isRequestSatisfied(pid,r);
+      return `<div class="detail-item ${sat?'ok':'neutral'}"><span class="di-icon">${sat?'✓':'◆'}</span>${r}</div>`;
+    }).join('');
+  }
+  let exclHTML='<div style="color:#9ca3af;font-size:12px">None</div>';
+  if(p.exclusions.length>0){
+    exclHTML=p.exclusions.map(e=>{
+      const violated=ak&&(()=>{
+        const {bayId,group}=parseSlotKey(ak);
+        const team=allPeopleInBayGroup(bayId,group).filter(id=>id!==pid);
+        return team.some(id=>{const t=getPersonById(id);return t&&(t.firstName+' '+t.lastName).toLowerCase().includes(e.toLowerCase());});
+      })();
+      return `<div class="detail-item ${violated?'bad':'ok'}"><span class="di-icon">${violated?'✗':'✓'}</span>${e}</div>`;
+    }).join('');
+  }
+  const fullNameLower=(p.firstName+' '+p.lastName).toLowerCase();
+  const lastNameLower=p.lastName.toLowerCase();
+  const reqBy=state.people.filter(other=>other.id!==pid&&other.requests.some(r=>{
+    if(r.length<4) return false;
+    const rl=r.toLowerCase();
+    return fullNameLower.includes(rl)||lastNameLower===rl;
+  }));
+  let reqByHTML='<div style="color:#9ca3af;font-size:12px">Nobody</div>';
+  if(reqBy.length>0) reqByHTML=reqBy.map(o=>`<div class="detail-item neutral">${o.firstName} ${o.lastName}</div>`).join('');
+  return `<div class="detail-name">${p.firstName} ${p.lastName}</div>
+<div class="detail-badges">
+  <span class="detail-badge ${badgeClass(p.role)}">${p.role}</span>
+  ${p.division?`<span class="detail-badge" style="background:#f3f4f6;color:#374151">${p.division}</span>`:''}
+  ${p.class_?`<span class="detail-badge" style="background:#f3f4f6;color:#374151">${p.class_}</span>`:''}
+</div>
+<div class="assign-info"><strong>Assignment</strong>${assignStr}</div>
+${p.rawRequests?`<div style="margin-top:8px;font-size:11px;color:#9ca3af;font-style:italic;padding:4px 6px;background:#f9fafb;border-radius:4px">"${p.rawRequests}"</div>`:''}
+<div class="detail-section" style="margin-top:10px"><h4>Requests</h4>${reqHTML}</div>
+<div class="detail-section"><h4>Must NOT be with</h4>${exclHTML}</div>
+<div class="detail-section"><h4>Requested by</h4>${reqByHTML}</div>`;
+}
+function showRightDetail(pid, anchorEl){
+  const p=getPersonById(pid); if(!p) return;
+  const popup=document.getElementById('shooter-popup');
+  document.getElementById('shooter-popup-body').innerHTML=buildShooterPopupHTML(pid);
+  // Reset any previous transform before measuring
+  popup.style.transform='none';
+  popup.style.left='-9999px';
+  popup.style.top='-9999px';
+  popup.style.display='block';
+  // Measure real popup size after render
+  requestAnimationFrame(()=>{
+    const popupW=popup.offsetWidth||268;
+    const popupH=popup.offsetHeight||300;
+    const vw=window.innerWidth, vh=window.innerHeight;
+    let left, top;
+    if(anchorEl){
+      const rect=anchorEl.getBoundingClientRect();
+      // Try right of card first, then left
+      left = rect.right+10;
+      top  = rect.top;
+      if(left+popupW > vw-8) left = rect.left-popupW-10;
+      if(left < 8) left = Math.min(rect.right+6, vw-popupW-8);
+    } else {
+      left = (vw-popupW)/2;
+      top  = (vh-popupH)/2;
+    }
+    // Clamp to viewport
+    if(top+popupH > vh-8) top = vh-popupH-8;
+    if(top < 8) top = 8;
+    if(left < 8) left = 8;
+    if(left+popupW > vw-8) left = vw-popupW-8;
+    popup.style.left=left+'px';
+    popup.style.top=top+'px';
+  });
+}
+function updateRightPanel(){
+  if(state.selectedPersonId) showRightDetail(state.selectedPersonId);
+}
+
+// ============================================================
+// COUNTERS
+// ============================================================
+function updateCounters(){
+  let a=0,b=0,u=0;
+  // Only count people registered for the active day (when multi-day match)
+  const relevantPeople = state.matchDays.length > 1
+    ? state.people.filter(p=>p.allMatchDays&&p.allMatchDays.includes(state.activeDay))
+    : state.people;
+  for(const p of relevantPeople){
+    const ak=personAssignment(p.id);
+    const adminK=adminPersonAssignment(p.id);
+    if(ak){
+      const {group}=parseSlotKey(ak);
+      if(group==='A')a++;else b++;
+    } else if(adminK){
+      const grp=parseAdminSlotKey(adminK).group;
+      if(grp==='A')a++;else b++;
+    } else { u++; }
+  }
+  document.getElementById('cnt-a').textContent=a;
+  document.getElementById('cnt-b').textContent=b;
+  document.getElementById('cnt-u').textContent=u;
+  const conflicts=totalConflicts();
+  const pill=document.getElementById('cnt-conflicts-pill');
+  document.getElementById('cnt-conflicts').textContent=conflicts;
+  pill.style.display=conflicts>0?'':'none';
+}
+
+// ============================================================
+// XLSX SCHEDULE IMPORT
+// ============================================================
+function importXLSX(arrayBuffer){
+  let wb;
+  try{ wb=XLSX.read(arrayBuffer,{type:'array'}); }
+  catch(e){ toast('Could not read XLSX file: '+e.message,'error'); return; }
+
+  const morningSheet=wb.Sheets['Morning Schedule'];
+  if(!morningSheet){ toast('Sheet "Morning Schedule" not found','error'); return; }
+
+  const rows=XLSX.utils.sheet_to_json(morningSheet,{header:1,defval:null});
+
+  // Match title from row 0
+  const matchTitle=rows[0]&&rows[0][0]?String(rows[0][0]).trim():'IPSC Match';
+
+  // Bay headers from row 9 (index), stage names from row 8
+  const bayHeaderRow=rows[9]||[];
+  const stageNameRow=rows[8]||[];
+  const bayCount=bayHeaderRow.slice(1).filter(v=>v!=null).length;
+  if(!bayCount){ toast('Could not detect bays from row 10','error'); return; }
+
+  // Build bays
+  state.bays=[];
+  for(let b=0;b<bayCount;b++){
+    const col=b+1;
+    const header=String(bayHeaderRow[col]||`Bay ${b+1}`);
+    let name=String(stageNameRow[col]||`Stage ${b+1}`).replace(/^\[|\]$/g,'').trim();
+    if(/stage name/i.test(name)) name=`Stage ${b+1}`;
+    const multiMatch=header.match(/Stages?\s+\d+\s*[&,]\s*\d+/i);
+    const stageCount=multiMatch?2:1;
+    state.bays.push({id:b+1,name,length:'Medium',rounds:15,targets:10,stages:stageCount});
+  }
+
+  // Helper: find or create person by full name
+  function findOrCreate(rawName, role){
+    if(!rawName||!String(rawName).trim()) return null;
+    const name=String(rawName).trim();
+    const parts=name.split(/\s+/);
+    const firstName=parts[0];
+    const lastName=parts.slice(1).join(' ');
+    let person=state.people.find(p=>
+      (p.firstName+' '+p.lastName).toLowerCase()===name.toLowerCase()
+    );
+    if(!person){
+      person={id:uid(),firstName,lastName,role:role||'Not Official',
+        division:'',class_:'',requests:[],exclusions:[],group:null,rawRequests:''};
+      state.people.push(person);
+    } else if(role&&role!=='Not Official'&&person.role==='Not Official'){
+      person.role=role;
+    }
+    return person;
+  }
+
+  // Build from live WORK_SLOTS/ADMIN_SLOTS so discipline labels apply
+  const WORK_ROW_MAP=WORK_SLOTS.map(s=>({label:s.label,sk:s.key,role:s.type==='cro'?'CRO':s.type==='ro'?'RO':'Not Official'}));
+  const ADMIN_ROW_MAP=ADMIN_SLOTS.map(s=>({label:s.title,sk:s.key,role:s.key==='RM'?'RM':'Not Official'}));
+
+  function parseSheet(sheetRows, workGroup, shootGroup, adminGroup){
+    // Work slots
+    for(const mapping of WORK_ROW_MAP){
+      for(let r=0;r<sheetRows.length;r++){
+        const lbl=sheetRows[r]&&sheetRows[r][0]?String(sheetRows[r][0]).trim():'';
+        if(lbl===mapping.label){
+          for(let b=0;b<bayCount;b++){
+            const name=sheetRows[r][b+1];
+            if(!name) continue;
+            const person=findOrCreate(name,mapping.role);
+            if(person){
+              const k=slotKey(b+1,workGroup,mapping.sk);
+              state.assignments[k]=person.id;
+              if(!person.group) person.group=workGroup;
+            }
+          }
+          break;
+        }
+      }
+    }
+    // Shooter slots
+    for(let s=1;s<=11;s++){
+      const label=`Shooter ${s}`;
+      for(let r=0;r<sheetRows.length;r++){
+        const lbl=sheetRows[r]&&sheetRows[r][0]?String(sheetRows[r][0]).trim():'';
+        if(lbl===label){
+          for(let b=0;b<bayCount;b++){
+            const name=sheetRows[r][b+1];
+            if(!name) continue;
+            const person=findOrCreate(name,'Not Official');
+            if(person){
+              const k=slotKey(b+1,shootGroup,`S${s}`);
+              state.assignments[k]=person.id;
+              if(!person.group) person.group=shootGroup;
+            }
+          }
+          break;
+        }
+      }
+    }
+    // Admin slots
+    for(const mapping of ADMIN_ROW_MAP){
+      for(let r=0;r<sheetRows.length;r++){
+        const lbl=sheetRows[r]&&sheetRows[r][0]?String(sheetRows[r][0]).trim():'';
+        if(lbl===mapping.label){
+          const name=sheetRows[r][1];
+          if(name){
+            const person=findOrCreate(name,mapping.role);
+            if(person){
+              const k=adminSlotKey(adminGroup,mapping.sk);
+              if(!state.adminAssignments[k]) state.adminAssignments[k]=person.id;
+              if(!person.group) person.group=adminGroup;
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // Morning schedule: morning workers = Group A work; morning shooters = Group B shoot
+  parseSheet(rows,'A','B','A');
+
+  // Afternoon schedule: afternoon workers = Group B work; afternoon shooters = Group A shoot
+  const afterSheet=wb.Sheets['Afternoon Schedule'];
+  if(afterSheet){
+    const aRows=XLSX.utils.sheet_to_json(afterSheet,{header:1,defval:null});
+    parseSheet(aRows,'B','A','B');
+  }
+
+  // Set match title
+  const titleInput=document.getElementById('match-title-input');
+  if(titleInput) titleInput.value=matchTitle;
+
+  state.uploads.xlsx=true;
+  updateUploadStatus();
+  generateBayInputs();
+  const totalPeople=state.people.length;
+  const totalAssigned=Object.keys(state.assignments).length+Object.keys(state.adminAssignments).length;
+  toast(`✓ Loaded "${matchTitle}" — ${state.bays.length} bays${totalPeople?' · '+totalPeople+' people':''}${totalAssigned?' · '+totalAssigned+' pre-assigned':''}`, 'success', 4000);
+}
+
+// ============================================================
+// FILE UPLOAD — detect XLSX vs CSV
+// ============================================================
+function handleFile(file){
+  if(!file) return;
+  const isXLSX=file.name.toLowerCase().endsWith('.xlsx')||file.name.toLowerCase().endsWith('.xls');
+  if(isXLSX){
+    const reader=new FileReader();
+    reader.onload=ev=>importXLSX(ev.target.result);
+    reader.readAsArrayBuffer(file);
+  } else {
+    const reader=new FileReader();
+    reader.onload=ev=>importCSV(ev.target.result, file.name);
+    reader.readAsText(file);
+  }
+}
+
+const fileInput=document.getElementById('file-input');
+fileInput.addEventListener('change',e=>{
+  handleFile(e.target.files[0]);
+  fileInput.value='';
+});
+const uploadLabel=document.getElementById('upload-label');
+uploadLabel.addEventListener('dragover',e=>{e.preventDefault();uploadLabel.classList.add('drag-over');});
+uploadLabel.addEventListener('dragleave',()=>uploadLabel.classList.remove('drag-over'));
+uploadLabel.addEventListener('drop',e=>{
+  e.preventDefault();uploadLabel.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+document.getElementById('btn-export-csv').addEventListener('click',exportCSV);
+async function exportCSV(){
+  if(typeof ExcelJS==='undefined'){toast('Excel library not loaded — try again in a moment','warn');return;}
+  const wb=new ExcelJS.Workbook();
+  const disciplineCfg=DISCIPLINE_CONFIGS[state.discipline]||DISCIPLINE_CONFIGS.ipsc;
+  wb.creator=disciplineCfg.name+' Squad Tool';
+  wb.created=new Date();
+  const matchTitle=document.getElementById('match-title-input').value||'IPSC Match';
+  const numDays=Math.max(state.matchDays.length,1);
+
+  const applyFill=(cell,argb)=>{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb}};};
+  const applyBorder=(cell,color='FFE5E7EB',style='hair')=>{
+    const s={style,color:{argb:color}};
+    cell.border={top:s,bottom:s,left:s,right:s};
+  };
+  const fillRow=(sheet,r,c1,cN,argb)=>{
+    for(let c=c1;c<=cN;c++) applyFill(sheet.getRow(r).getCell(c),argb);
+  };
+
+  for(let di=0;di<numDays;di++){
+    const dayNum=di+1;
+    const rawDate=state.matchDays[di]||'';
+    let dateStr='';
+    if(rawDate){try{dateStr=new Date(rawDate+'T12:00:00').toLocaleDateString('en-CA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}catch(e){dateStr=rawDate;}}
+    const dayPrefix=numDays>1?`Day ${dayNum} `:'';
+    const dayAssign=state.dayAssignments[dayNum]||{};
+    const dayAdmin=state.dayAdminAssignments[dayNum]||{};
+
+    const slotP=(bayId,grp,sk)=>{const pid=dayAssign[`${bayId}-${grp}-${sk}`];return pid?getPersonById(pid):null;};
+    const adminP=(grp,sk)=>{const pid=dayAdmin[`admin-${grp}-${sk}`];return pid?getPersonById(pid):null;};
+    const pName=p=>p?`${p.firstName} ${p.lastName}`:'';
+    const pFont=(p,extra={})=>({name:'Arial',size:10,bold:!!(p&&p.firstMatch),italic:!!(p&&p.mentor),color:{argb:'FF1E293B'},...extra});
+
+    const sessions=[
+      {label:`${dayPrefix}Morning Schedule`,grpWork:'A',grpShoot:'B',squadOffset:0,
+       accentArgb:'FF1D4ED8',lightArgb:'FFE0EAFF',midArgb:'FFBFD4FE',darkArgb:'FF1E3A8A'},
+      {label:`${dayPrefix}Afternoon Schedule`,grpWork:'B',grpShoot:'A',squadOffset:state.bays.length,
+       accentArgb:'FF047857',lightArgb:'FFD1FAE5',midArgb:'FFA7F3D0',darkArgb:'FF064E3B'},
+    ];
+
+    for(const sess of sessions){
+      const sheet=wb.addWorksheet(sess.label);
+      const nBays=state.bays.length;
+      const nCols=nBays+1; // col1=labels, cols2..nBays+1=bays
+      const legCol=nCols+3;
+
+      // Column widths
+      sheet.getColumn(1).width=22;
+      for(let c=2;c<=nBays+1;c++) sheet.getColumn(c).width=24;
+      sheet.getColumn(nCols+2).width=1.5; // spacer
+      sheet.getColumn(legCol).width=24;
+
+      let row=1;
+
+      // ── TITLE ──
+      {
+        const r=sheet.getRow(row); r.height=32;
+        const c=r.getCell(1);
+        c.value=`${matchTitle}${dateStr?'   ·   '+dateStr:''}`;
+        c.font={name:'Arial',bold:true,size:16,color:{argb:'FFFFFFFF'}};
+        applyFill(c,'FF0F172A');
+        c.alignment={horizontal:'center',vertical:'middle'};
+        sheet.mergeCells(row,1,row,nCols);
+        fillRow(sheet,row,2,nCols,'FF0F172A');
+        row++;
+      }
+
+      // ── WORK SECTION BANNER ──
+      row++; // blank gap
+      {
+        const r=sheet.getRow(row); r.height=24;
+        const c=r.getCell(1);
+        c.value=`${sess.label}  —  Work`;
+        c.font={name:'Arial',bold:true,size:12,color:{argb:'FFFFFFFF'}};
+        applyFill(c,sess.accentArgb);
+        c.alignment={horizontal:'left',vertical:'middle',indent:1};
+        sheet.mergeCells(row,1,row,nCols);
+        fillRow(sheet,row,2,nCols,sess.accentArgb);
+        row++;
+      }
+
+      // ── ADMIN + LEGEND (4 rows) ──
+      // Use ADMIN_SLOTS titles which are mutated by applyDisciplineLabels()
+      const adminDefs=ADMIN_SLOTS.map(s=>({sk:s.key,label:s.title}));
+      const legendDefs=[
+        {text:'Bold = First Match',bg:null},
+        {text:'Italics = Mentor',bg:null},
+        {text:`Yellow highlight = New ${DISCIPLINE_CONFIGS[state.discipline]?.slotLabels?.CRO||'CRO'}/${DISCIPLINE_CONFIGS[state.discipline]?.slotLabels?.RO1?.replace(/ \d/,'')||'RO'}`,bg:'FFFEF08A'},
+        {text:'Orange highlight = Bench Rest',bg:'FFFED7AA'},
+      ];
+      for(let i=0;i<4;i++){
+        const r=sheet.getRow(row+i); r.height=18;
+        const p=adminP(sess.grpWork,adminDefs[i].sk);
+        const lc=r.getCell(1);
+        lc.value=adminDefs[i].label;
+        lc.font={name:'Arial',bold:true,size:10,color:{argb:'FF334155'}};
+        applyFill(lc,'FFF1F5F9');
+        lc.border={bottom:{style:'hair',color:{argb:'FFE2E8F0'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};
+        const nc=r.getCell(2);
+        nc.value=pName(p);
+        nc.font=pFont(p);
+        applyFill(nc,'FFF8FAFC');
+        nc.border={bottom:{style:'hair',color:{argb:'FFE2E8F0'}}};
+        for(let c=3;c<=nCols;c++){applyFill(r.getCell(c),'FFF8FAFC');r.getCell(c).border={bottom:{style:'hair',color:{argb:'FFE2E8F0'}}};}
+        // Legend cell
+        const lg=r.getCell(legCol);
+        lg.value=legendDefs[i].text;
+        lg.font={name:'Arial',size:9,italic:true,color:{argb:'FF64748B'}};
+        if(legendDefs[i].bg) applyFill(lg,legendDefs[i].bg);
+        lg.alignment={vertical:'middle'};
+      }
+      row+=4;
+      sheet.getRow(row).height=8; row++;
+
+      // ── WORK GRID ──
+      // Stage name row
+      {
+        const r=sheet.getRow(row); r.height=22;
+        r.getCell(1).value='';
+        applyFill(r.getCell(1),'FFF1F5F9');
+        for(let bi=0;bi<nBays;bi++){
+          const c=r.getCell(bi+2);
+          c.value=state.bays[bi].name;
+          c.font={name:'Arial',bold:true,size:10,color:{argb:'FF1E293B'}};
+          applyFill(c,sess.midArgb);
+          c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+          c.border={top:{style:'medium',color:{argb:sess.accentArgb}},bottom:{style:'thin',color:{argb:sess.accentArgb}},left:{style:'hair',color:{argb:'FFD1D5DB'}},right:{style:'hair',color:{argb:'FFD1D5DB'}}};
+        }
+        row++;
+      }
+      // Bay/Stage number row
+      {
+        const r=sheet.getRow(row); r.height=15;
+        r.getCell(1).value=''; applyFill(r.getCell(1),'FFEEF2F7');
+        for(let bi=0;bi<nBays;bi++){
+          const c=r.getCell(bi+2);
+          c.value=`${disciplineCfg.bayLabel} ${state.bays[bi].id}  /  ${disciplineCfg.stageLabel} ${state.bays[bi].id}`;
+          c.font={name:'Arial',size:8,color:{argb:'FF64748B'}};
+          applyFill(c,'FFEEF2F7');
+          c.alignment={horizontal:'center',vertical:'middle'};
+          c.border={bottom:{style:'medium',color:{argb:sess.accentArgb}},left:{style:'hair',color:{argb:'FFD1D5DB'}},right:{style:'hair',color:{argb:'FFD1D5DB'}}};
+        }
+        row++;
+      }
+      // Work slot rows
+      const workStyle={
+        cro: {bg:'FFE9D5FF',altBg:'FFE9D5FF',lFont:'FF581C87',lBold:true},
+        ro:  {bg:'FFF5F0FF',altBg:'FFEDE9FE',lFont:'FF6D28D9',lBold:false},
+        crew:{bg:'FFFFFFFF',altBg:'FFF8FAFC',lFont:'FF374151',lBold:false},
+      };
+      const crewSlots=WORK_SLOTS.filter(s=>s.type==='crew');
+      for(const wslot of WORK_SLOTS){
+        const r=sheet.getRow(row); r.height=18;
+        const ws=workStyle[wslot.type]||workStyle.crew;
+        const isAltCrew=wslot.type==='crew'&&crewSlots.indexOf(wslot)%2===1;
+        const rowBg=isAltCrew?ws.altBg:ws.bg;
+        const lc=r.getCell(1);
+        lc.value=wslot.label;
+        lc.font={name:'Arial',bold:ws.lBold,size:10,color:{argb:ws.lFont}};
+        applyFill(lc,rowBg);
+        lc.border={bottom:{style:'hair',color:{argb:'FFE5E7EB'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};
+        for(let bi=0;bi<nBays;bi++){
+          const p=slotP(state.bays[bi].id,sess.grpWork,wslot.key);
+          const c=r.getCell(bi+2);
+          c.value=pName(p);
+          // Yellow for first-match CRO/RO
+          let cellBg=rowBg;
+          if(p&&p.firstMatch&&(wslot.type==='cro'||wslot.type==='ro')) cellBg='FFFEF08A';
+          c.font=pFont(p);
+          applyFill(c,cellBg);
+          c.alignment={horizontal:'center',vertical:'middle'};
+          applyBorder(c,'FFE5E7EB','hair');
+        }
+        row++;
+      }
+
+      sheet.getRow(row).height=12; row++;
+      sheet.getRow(row).height=6;  row++;
+
+      // ── SHOOT SECTION BANNER ──
+      {
+        const r=sheet.getRow(row); r.height=24;
+        const c=r.getCell(1);
+        c.value=`${sess.label}  —  Shoot`;
+        c.font={name:'Arial',bold:true,size:12,color:{argb:'FFFFFFFF'}};
+        applyFill(c,sess.accentArgb);
+        c.alignment={horizontal:'left',vertical:'middle',indent:1};
+        sheet.mergeCells(row,1,row,nCols);
+        fillRow(sheet,row,2,nCols,sess.accentArgb);
+        row++;
+      }
+      // Stage name row (shoot)
+      {
+        const r=sheet.getRow(row); r.height=22;
+        r.getCell(1).value=''; applyFill(r.getCell(1),'FFF1F5F9');
+        for(let bi=0;bi<nBays;bi++){
+          const c=r.getCell(bi+2);
+          c.value=state.bays[bi].name;
+          c.font={name:'Arial',bold:true,size:10,color:{argb:'FF1E293B'}};
+          applyFill(c,sess.midArgb);
+          c.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+          c.border={top:{style:'medium',color:{argb:sess.accentArgb}},bottom:{style:'thin',color:{argb:sess.accentArgb}},left:{style:'hair',color:{argb:'FFD1D5DB'}},right:{style:'hair',color:{argb:'FFD1D5DB'}}};
+        }
+        row++;
+      }
+      // Bay/Squad number row
+      {
+        const r=sheet.getRow(row); r.height=15;
+        r.getCell(1).value=''; applyFill(r.getCell(1),'FFEEF2F7');
+        for(let bi=0;bi<nBays;bi++){
+          const squadNum=state.bays[bi].id+sess.squadOffset;
+          const c=r.getCell(bi+2);
+          c.value=`Bay ${state.bays[bi].id}  /  Squad ${squadNum}`;
+          c.font={name:'Arial',size:8,color:{argb:'FF64748B'}};
+          applyFill(c,'FFEEF2F7');
+          c.alignment={horizontal:'center',vertical:'middle'};
+          c.border={bottom:{style:'medium',color:{argb:sess.accentArgb}},left:{style:'hair',color:{argb:'FFD1D5DB'}},right:{style:'hair',color:{argb:'FFD1D5DB'}}};
+        }
+        row++;
+      }
+      // Shoot rows
+      for(let si=0;si<SHOOT_SLOTS.length;si++){
+        const ss=SHOOT_SLOTS[si];
+        const r=sheet.getRow(row); r.height=18;
+        const bg=si%2===0?sess.lightArgb:'FFFFFFFF';
+        const lc=r.getCell(1);
+        lc.value=ss.label;
+        lc.font={name:'Arial',size:10,color:{argb:'FF475569'}};
+        applyFill(lc,bg);
+        lc.border={bottom:{style:'hair',color:{argb:'FFE5E7EB'}},right:{style:'thin',color:{argb:'FFD1D5DB'}}};
+        for(let bi=0;bi<nBays;bi++){
+          const p=slotP(state.bays[bi].id,sess.grpShoot,ss.key);
+          const c=r.getCell(bi+2);
+          c.value=pName(p);
+          c.font=pFont(p);
+          applyFill(c,bg);
+          c.alignment={horizontal:'center',vertical:'middle'};
+          applyBorder(c,'FFE5E7EB','hair');
+        }
+        row++;
+      }
+
+      // Freeze first col + title row
+      sheet.views=[{state:'frozen',xSplit:1,ySplit:1}];
+
+      // Print setup
+      sheet.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.5,right:0.5,top:0.5,bottom:0.5,header:0,footer:0}};
+    }
+  }
+
+  // Download
+  const buffer=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const fname=(document.getElementById('match-title-input').value||'squad-schedule').replace(/[^\w\s\-]/g,'').trim()||'squad-schedule';
+  a.download=`${fname}.xlsx`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('Excel schedule exported','success');
+}
+
+// ============================================================
+// EXPORT SUMMARY
+// ============================================================
+document.getElementById('btn-export-summary').addEventListener('click',exportSummary);
+function exportSummary(){
+  const title=document.getElementById('match-title-input').value||'IPSC Match';
+  let out=`${title} — Squad Summary\n${'='.repeat(60)}\n\n`;
+  for(const bay of state.bays){
+    out+=`BAY ${bay.id}: ${bay.name}\n${'-'.repeat(40)}\n`;
+    for(const grp of GROUPS){
+      out+=`  GROUP ${grp}:\n`;
+      out+=`    WORK:\n`;
+      for(const ws of WORK_SLOTS){
+        const k=slotKey(bay.id,grp,ws.key);
+        const pid=state.assignments[k];
+        const p=pid?getPersonById(pid):null;
+        out+=`      ${ws.label.padEnd(8)}: ${p?p.firstName+' '+p.lastName:'(empty)'}\n`;
+      }
+      out+=`    SHOOT:\n`;
+      for(const ss of SHOOT_SLOTS){
+        const k=slotKey(bay.id,grp,ss.key);
+        const pid=state.assignments[k];
+        const p=pid?getPersonById(pid):null;
+        if(p) out+=`      ${ss.label}: ${p.firstName} ${p.lastName}\n`;
+      }
+    }
+    out+='\n';
+  }
+  out+=`\nUNASSIGNED:\n${'-'.repeat(40)}\n`;
+  state.people.filter(p=>!personAssignment(p.id)).forEach(p=>{
+    out+=`  ${p.firstName} ${p.lastName} (${p.role})\n`;
+  });
+  download(out,'squad-summary.txt','text/plain');
+  toast('Summary exported','success');
+}
+
+// ============================================================
+// SAVE / LOAD STATE
+// ============================================================
+document.getElementById('btn-save').addEventListener('click',saveState);
+document.getElementById('btn-load').addEventListener('click',()=>document.getElementById('state-file-input').click());
+document.getElementById('state-file-input').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const saved=JSON.parse(ev.target.result);
+      state.bays=saved.bays||[];
+      state.people=saved.people||[];
+      state.matchDays=saved.matchDays||[];
+      state.dayAssignments=saved.dayAssignments||{1:{}};
+      state.dayAdminAssignments=saved.dayAdminAssignments||{1:{}};
+      state.activeDay=saved.activeDay||1;
+      // Fallback: if old save format used flat assignments, migrate to day 1
+      if(saved.assignments&&!saved.dayAssignments){
+        state.dayAssignments={1:saved.assignments};
+      }
+      if(saved.adminAssignments&&!saved.dayAdminAssignments){
+        state.dayAdminAssignments={1:saved.adminAssignments};
+      }
+      if(!state.dayAssignments[state.activeDay]) state.dayAssignments[state.activeDay]={};
+      if(!state.dayAdminAssignments[state.activeDay]) state.dayAdminAssignments[state.activeDay]={};
+      state.assignments=state.dayAssignments[state.activeDay];
+      state.adminAssignments=state.dayAdminAssignments[state.activeDay];
+      state.nextPersonId=saved.nextPersonId||1;
+      if(saved.discipline) state.discipline=saved.discipline;
+      document.getElementById('match-title-input').value=saved.matchTitle||'Match Title';
+      applyDisciplineLabels();
+      toast('State loaded','success');
+      applyDayTint();
+      if(document.getElementById('main-screen').classList.contains('active')){
+        renderBayGrid();renderPeopleList();updateCounters();
+      } else {
+        showMainScreen();
+      }
+    }catch(err){toast('Failed to load state: invalid file','error');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+function saveState(){
+  const data={
+    matchTitle:document.getElementById('match-title-input').value,
+    discipline:state.discipline,
+    bays:state.bays,people:state.people,
+    dayAssignments:state.dayAssignments,
+    dayAdminAssignments:state.dayAdminAssignments,
+    activeDay:state.activeDay,
+    matchDays:state.matchDays,
+    nextPersonId:state.nextPersonId
+  };
+  download(JSON.stringify(data,null,2),'squad-state.json','application/json');
+  toast('State saved','success');
+}
+
+// ============================================================
+// DOWNLOAD HELPER
+// ============================================================
+function download(content,filename,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+// ============================================================
+// CLEAR ALL
+// ============================================================
+document.getElementById('btn-clear-all').addEventListener('click',()=>{
+  if(!confirm('Clear ALL assignments? This cannot be undone.')) return;
+  // Clear current day's assignments (preserve pointer — clear the backing dict)
+  state.dayAssignments[state.activeDay]={};
+  state.assignments=state.dayAssignments[state.activeDay];
+  state.dayAdminAssignments[state.activeDay]={};
+  state.adminAssignments=state.dayAdminAssignments[state.activeDay];
+  for(const p of state.people) p.group=null;
+  state.activeSlot=null;
+  state.selectedPersonId=null;
+  if(state._pendingLinks) state._pendingLinks.clear();
+  renderBayGrid();renderAdminCards();renderPeopleList();updateCounters();showRightEmpty();
+  toast('All assignments cleared','info');
+});
+
+// ============================================================
+// DISCIPLINE SELECTOR
+// ============================================================
+document.getElementById('discipline-select').addEventListener('change', e => {
+  state.discipline = e.target.value;
+  applyDisciplineLabels();
+  renderBayGrid();
+  renderAdminCards();
+  renderPeopleList();
+});
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(state.activeSlot){
+      const prev=state.activeSlot;
+      state.activeSlot=null;
+      refreshGroupSection(prev.bayId,prev.group);
+    }
+    if(state.selectedPersonId){
+      state.selectedPersonId=null;
+      renderPeopleList();
+      showRightEmpty();
+    }
+  }
+});
+
+function escapeHtml(str){
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function escapeAttr(str){
+  return (str||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// ============================================================
+// PATCH: buildPersonCard to highlight pending squad links
+// ============================================================
+const _origBuildPersonCard=buildPersonCard;
+buildPersonCard=function(p){
+  const card=_origBuildPersonCard(p);
+  // Pending link highlight
+  if(state._pendingLinks){
+    const hasPending=[...state._pendingLinks].some(k=>k.startsWith(`pending-${p.id}-`)||k.includes(`-${p.id}`));
+    if(hasPending){
+      card.style.borderColor='#f59e0b';
+      card.style.background='#fffbeb';
+      const linkBadge=document.createElement('span');
+      linkBadge.style.cssText='font-size:10px;color:#92400e;background:#fef3c7;border-radius:8px;padding:1px 5px;white-space:nowrap;flex-shrink:0';
+      linkBadge.title='Pending group link';
+      linkBadge.textContent='linked';
+      card.appendChild(linkBadge);
+    }
+  }
+  return card;
+};
+
+
+
+// ============================================================
+// PATCH: attemptAssign — handle pending squad links
+// ============================================================
+const _origAttemptAssign=attemptAssign;
+attemptAssign=function(pid,bayId,group,sk){
+  _origAttemptAssign(pid,bayId,group,sk);
+  // After assigning, check if there are pending links for this person and auto-place them
+  if(state._pendingLinks&&state._pendingLinks.size>0){
+    const linkedPids=[...state._pendingLinks]
+      .filter(k=>k.startsWith(`pending-${pid}-`))
+      .map(k=>k.replace(`pending-${pid}-`,''));
+    for(const linkedPid of linkedPids){
+      if(personAssignment(linkedPid)) continue; // already placed
+      // Find first free shooter slot in same bay+group
+      for(const ss of SHOOT_SLOTS){
+        const k=slotKey(bayId,group,ss.key);
+        if(!state.assignments[k]){
+          state.assignments[k]=linkedPid;
+          const lp=getPersonById(linkedPid);
+          if(lp&&!lp.group) lp.group=group;
+          refreshGroupSection(bayId,group);
+          const linkedP=getPersonById(linkedPid);
+          if(linkedP) toast(`Auto-placed ${linkedP.firstName} ${linkedP.lastName} with ${getPersonById(pid)?getPersonById(pid).firstName+' '+getPersonById(pid).lastName:'them'}`,'success',3000);
+          break;
+        }
+      }
+    }
+    // Clear pending links for this person
+    for(const k of [...state._pendingLinks]){
+      if(k.includes(`-${pid}`)||k.startsWith(`pending-${pid}-`)) state._pendingLinks.delete(k);
+    }
+    if(linkedPids.length>0){ renderPeopleList();updateCounters();updateRightPanel(); }
+  }
+};
+
+// ============================================================
+// PATCH: showRightDetail — upgrade requests to clickable chips
+// ============================================================
+const _origShowRightDetail=showRightDetail;
+showRightDetail=function(pid, anchorEl){
+  _origShowRightDetail(pid, anchorEl);
+  const p=getPersonById(pid);
+  const det=document.getElementById('shooter-popup-body');
+  if(!det||document.getElementById('shooter-popup').style.display==='none') return;
+
+  // --- Upgrade requests section to clickable chips ---
+  if(!p||p.requests.length===0) return;
+  // Find the existing requests section and replace it
+  const sections=det.querySelectorAll('.detail-section');
+  let reqSection=null;
+  for(const s of sections){
+    if(s.querySelector('h4')&&s.querySelector('h4').textContent==='Requests'){
+      reqSection=s;break;
+    }
+  }
+  if(!reqSection) return;
+
+  const ak=personAssignment(pid);
+  const newReqContent=p.requests.map(r=>{
+    const sat=isRequestSatisfied(pid,r);
+    // Find if the requested person exists in CSV
+    const reqPerson=state.people.find(x=>(x.firstName+' '+x.lastName).toLowerCase().includes(r.toLowerCase()));
+    if(sat){
+      // Already in same squad — green chip, non-clickable
+      return `<div class="detail-item ok" style="padding:3px 4px"><span class="di-icon">&#10003;</span><span class="req-chip satisfied" title="${escapeAttr(r)} is already in your squad">&#10003; ${escapeHtml(r)}</span></div>`;
+    } else if(!reqPerson){
+      // Not in CSV — plain text
+      return `<div class="detail-item neutral" style="padding:3px 4px"><span class="di-icon">&#9900;</span><span class="req-chip no-person" title="Not found in loaded roster">${escapeHtml(r)}</span></div>`;
+    } else {
+      // Clickable chip — add to same slot or mark pending
+      const pendingKey=`pending-${pid}-${reqPerson.id}`;
+      const isPending=state._pendingLinks&&state._pendingLinks.has(pendingKey);
+      const cls=isPending?'pending-link':'';
+      const label=isPending?`&#9201; ${escapeHtml(r)}`:`<span class="rc-plus">+</span>${escapeHtml(r)}`;
+      return `<div class="detail-item neutral" style="padding:3px 4px" data-req-chip-pid="${pid}" data-req-chip-target="${reqPerson.id}"><span class="di-icon">&#9900;</span><span class="req-chip ${cls}" data-req-action="${reqPerson.id}" title="Click to squad ${escapeAttr(r)} with ${escapeAttr(p.firstName+' '+p.lastName)}">${label}</span></div>`;
+    }
+  }).join('');
+
+  // Replace the inner content of the requests section (keep the h4)
+  const h4=reqSection.querySelector('h4');
+  reqSection.innerHTML='';
+  if(h4) reqSection.appendChild(h4);
+  const wrapper=document.createElement('div');
+  wrapper.innerHTML=newReqContent;
+  while(wrapper.firstChild) reqSection.appendChild(wrapper.firstChild);
+
+  // Wire up clickable chips
+  reqSection.querySelectorAll('[data-req-action]').forEach(chip=>{
+    chip.addEventListener('click',e=>{
+      e.stopPropagation();
+      const targetPid=chip.dataset.reqAction;
+      handleRequestChipClick(pid,targetPid);
+    });
+  });
+};
+
+function handleRequestChipClick(sourcePid,targetPid){
+  const source=getPersonById(sourcePid);
+  const target=getPersonById(targetPid);
+  if(!source||!target) return;
+
+  const sourceAk=personAssignment(sourcePid);
+  if(sourceAk){
+    // Source is assigned — find next free shooter slot in same bay+group
+    const {bayId,group}=parseSlotKey(sourceAk);
+    // Look for free shooter slot first, then any free slot
+    let placed=false;
+    for(const ss of SHOOT_SLOTS){
+      const k=slotKey(bayId,group,ss.key);
+      if(!state.assignments[k]){
+        // Check if target already assigned somewhere
+        const prevKey=personAssignment(targetPid);
+        if(prevKey){ delete state.assignments[prevKey]; const prev=parseSlotKey(prevKey); refreshGroupSection(prev.bayId,prev.group); }
+        state.assignments[k]=targetPid;
+        if(!target.group) target.group=group;
+        if(hasConflict(targetPid)){
+          toast(`Warning: ${target.firstName} ${target.lastName} has a conflict in this bay!`,'warn',4000);
+        }
+        refreshGroupSection(bayId,group);
+        const otherGrp=group==='A'?'B':'A';
+        refreshGroupSection(bayId,otherGrp);
+        renderPeopleList();updateCounters();
+        toast(`Added ${target.firstName} ${target.lastName} to same squad as ${source.firstName} ${source.lastName}`,'success',3000);
+        showRightDetail(sourcePid);
+        placed=true;
+        break;
+      }
+    }
+    if(!placed){
+      toast(`No free shooter slots in Bay ${bayId} Group ${group} for ${target.firstName} ${target.lastName}`,'warn',3500);
+    }
+  } else {
+    // Source is not assigned — add to pending link group
+    if(!state._pendingLinks) state._pendingLinks=new Set();
+    const key=`pending-${sourcePid}-${targetPid}`;
+    const key2=`pending-${targetPid}-${sourcePid}`;
+    state._pendingLinks.add(key);
+    state._pendingLinks.add(key2);
+    // Highlight both in people list
+    renderPeopleList();
+    toast(`Marked ${target.firstName} ${target.lastName} to group with ${source.firstName} ${source.lastName} — assign either one to place them together`,'info',4500);
+    showRightDetail(sourcePid);
+  }
+}
+
+// ============================================================
+// CLOSE SHOOTER POPUP ON OUTSIDE CLICK
+// ============================================================
+document.addEventListener('click', e=>{
+  const popup=document.getElementById('shooter-popup');
+  if(!popup||popup.style.display==='none') return;
+  // Close if click is outside popup and outside a person card
+  if(!popup.contains(e.target) && !e.target.closest('.person-card') && !e.target.closest('[data-req-action]')){
+    closeShooterPopup();
+    state.selectedPersonId=null;
+    renderPeopleList();
+  }
+});
+
+// ============================================================
+// STAGE IMAGE HOVER PREVIEW
+// ============================================================
+(function(){
+  const preview = document.getElementById('stage-img-preview');
+  if(!preview) return;
+  let hideTimer;
+  document.addEventListener('mouseover', e=>{
+    const img = e.target.closest('.bay-stage-img');
+    if(!img||!img.src) return;
+    clearTimeout(hideTimer);
+    preview.src = img.src;
+    preview.style.display = 'block';
+    positionPreview(e);
+  });
+  document.addEventListener('mousemove', e=>{
+    if(preview.style.display==='none') return;
+    if(!e.target.closest('.bay-stage-img')){ hideTimer=setTimeout(()=>{preview.style.display='none';},80); return; }
+    clearTimeout(hideTimer);
+    positionPreview(e);
+  });
+  document.addEventListener('mouseout', e=>{
+    if(e.target.closest('.bay-stage-img')){
+      hideTimer=setTimeout(()=>{ preview.style.display='none'; }, 80);
+    }
+  });
+  function positionPreview(e){
+    const vw=window.innerWidth, vh=window.innerHeight;
+    const pw=Math.min(420,vw*0.35), ph=340;
+    let x=e.clientX+18, y=e.clientY-20;
+    if(x+pw > vw-8) x=e.clientX-pw-10;
+    if(y+ph > vh-8) y=vh-ph-8;
+    if(y<8) y=8;
+    preview.style.left=x+'px';
+    preview.style.top=y+'px';
+    preview.style.maxWidth=pw+'px';
+  }
+})();
+
+// ============================================================
+// BOTTOM PANEL RESIZE HANDLE
+// ============================================================
+(function(){
+  const handle = document.getElementById('bottom-resize-handle');
+  const panel  = document.getElementById('bottom-panel');
+  if(!handle || !panel) return;
+
+  let dragging = false, startY = 0, startH = 0;
+
+  handle.addEventListener('mousedown', e=>{
+    dragging = true;
+    startY = e.clientY;
+    startH = panel.offsetHeight;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ns-resize';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e=>{
+    if(!dragging) return;
+    // Moving UP increases the panel height (panel is at the bottom)
+    const delta = startY - e.clientY;
+    const newH  = Math.min(Math.max(startH + delta, 120), window.innerHeight * 0.55);
+    panel.style.height = newH + 'px';
+  });
+
+  document.addEventListener('mouseup', ()=>{
+    if(!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  });
+})();
+
+// ============================================================
+// INIT
+// ============================================================
+// Do NOT pre-generate bays — start blank, populate from uploads
+</script>
+</body>
+</html>
